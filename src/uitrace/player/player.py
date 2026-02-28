@@ -63,6 +63,11 @@ class Player:
         win = self._platform.locate(selector)
         if win is not None:
             self._platform.focus(win)
+        else:
+            raise UitError(
+                code=ErrorCode.WINDOW_NOT_FOUND,
+                message="Window not found for selector",
+            )
         return win
 
     def _handle_window_bounds(
@@ -226,23 +231,144 @@ class Player:
                 elif event_type == "scroll":
                     screen_final = self._handle_scroll(event, current_bounds)
 
-                elif event_type in ("assert", "wait_until"):
-                    elapsed = (self._clock_ns() - t0) // 1_000_000
-                    yield StepResult(
-                        type="step_result",
-                        step=step,
-                        event_idx=event_idx,
-                        event_type=event_type,
-                        status="error",
-                        ok=False,
-                        elapsed_ms=int(elapsed),
-                        dry_run=False,
-                        error_code="NOT_IMPLEMENTED",
-                        message="not yet implemented",
+                elif event_type == "assert":
+                    from uitrace.player.observer import (
+                        check_pixel,
+                        check_window_title_contains,
                     )
-                    continue
+
+                    kind = getattr(event, "kind", None)
+                    if kind == "window_title_contains":
+                        result = check_window_title_contains(
+                            self._platform,
+                            current_win,
+                            getattr(event, "value", "") or "",
+                        )
+                    elif kind == "pixel":
+                        result = check_pixel(
+                            self._platform,
+                            current_bounds,
+                            getattr(event, "pos").rx,
+                            getattr(event, "pos").ry,
+                            getattr(event, "rgb"),
+                            getattr(event, "tolerance", 0) or 0,
+                        )
+                    else:
+                        result = {
+                            "ok": False,
+                            "observed": {
+                                "error": f"unknown assert kind: {kind}",
+                            },
+                        }
+
+                    if not result["ok"]:
+                        elapsed = (self._clock_ns() - t0) // 1_000_000
+                        yield StepResult(
+                            type="step_result",
+                            step=step,
+                            event_idx=event_idx,
+                            event_type=event_type,
+                            status="error",
+                            ok=False,
+                            elapsed_ms=int(elapsed),
+                            dry_run=False,
+                            error_code=ErrorCode.ASSERTION_FAILED.name,
+                            message=f"Assertion failed: {kind}",
+                            observed=result.get("observed"),
+                        )
+                        raise UitError(
+                            code=ErrorCode.ASSERTION_FAILED,
+                            message=f"Assertion failed: {kind}",
+                        )
+
+                elif event_type == "wait_until":
+                    kind = getattr(event, "kind", None)
+                    if kind == "pixel":
+                        from uitrace.player.observer import wait_until_pixel
+
+                        result = wait_until_pixel(
+                            self._platform,
+                            current_bounds,
+                            getattr(event, "pos").rx,
+                            getattr(event, "pos").ry,
+                            getattr(event, "rgb"),
+                            getattr(event, "tolerance", 0) or 0,
+                            getattr(event, "timeout_ms", 5000),
+                        )
+                        elapsed = (self._clock_ns() - t0) // 1_000_000
+                        if not result["ok"]:
+                            yield StepResult(
+                                type="step_result",
+                                step=step,
+                                event_idx=event_idx,
+                                event_type=event_type,
+                                status="error",
+                                ok=False,
+                                elapsed_ms=int(elapsed),
+                                dry_run=False,
+                                error_code=ErrorCode.ASSERTION_FAILED.name,
+                                message="wait_until pixel timed out",
+                                observed=result.get("observed"),
+                            )
+                            raise UitError(
+                                code=ErrorCode.ASSERTION_FAILED,
+                                message="wait_until pixel timed out",
+                            )
+                        # Fall through to success
+                    elif kind == "window_found":
+                        selector = getattr(event, "selector", None)
+                        timeout_ms = getattr(event, "timeout_ms", 5000)
+                        poll_interval = 0.05  # 50ms
+                        deadline = self._clock_ns() + timeout_ms * 1_000_000
+                        found_win = None
+                        while self._clock_ns() < deadline:
+                            found_win = self._platform.locate(selector)
+                            if found_win is not None:
+                                break
+                            self._sleep(poll_interval)
+                        elapsed = (self._clock_ns() - t0) // 1_000_000
+                        if found_win is None:
+                            yield StepResult(
+                                type="step_result",
+                                step=step,
+                                event_idx=event_idx,
+                                event_type=event_type,
+                                status="error",
+                                ok=False,
+                                elapsed_ms=int(elapsed),
+                                dry_run=False,
+                                error_code=ErrorCode.WINDOW_NOT_FOUND.name,
+                                message=f"wait_until window_found timed out after {timeout_ms}ms",
+                            )
+                            raise UitError(
+                                code=ErrorCode.WINDOW_NOT_FOUND,
+                                message=f"wait_until window_found timed out after {timeout_ms}ms",
+                            )
+                        # Update current window state
+                        current_win = found_win
+                        self._platform.focus(current_win)
+                        # Fall through to success
+                    else:
+                        elapsed = (self._clock_ns() - t0) // 1_000_000
+                        yield StepResult(
+                            type="step_result",
+                            step=step,
+                            event_idx=event_idx,
+                            event_type=event_type,
+                            status="error",
+                            ok=False,
+                            elapsed_ms=int(elapsed),
+                            dry_run=False,
+                            error_code="NOT_IMPLEMENTED",
+                            message=f"unknown wait_until kind: {kind}",
+                        )
+                        continue
 
             except UitError as exc:
+                # assert and wait_until already yield their own error
+                # StepResult before raising; avoid double-yield for those.
+                if event_type in ("assert", "wait_until"):
+                    raise
                 elapsed = (self._clock_ns() - t0) // 1_000_000
                 yield StepResult(
                     type="step_result",
