@@ -1,3 +1,5 @@
+from dataclasses import is_dataclass
+
 from uitrace.errors import ErrorCode, UitError, format_error
 
 
@@ -9,3 +11,7 @@ def test_format_error_includes_code_message_and_hint():
     assert "SCHEMA_INVALID" in formatted
     assert "bad" in formatted
     assert "do x" in formatted
+
+
+def test_uiterror_is_dataclass_model():
+    assert is_dataclass(UitError)

@@ -1,0 +1,3 @@
+- 2026-02-28: Task 3 introduces a unified error model via `ErrorCode` + `UitError`.
+- 2026-02-28: `format_error` keeps one-line output with optional hint suffix.
+- 2026-02-28: For TDD red-phase, adding a dataclass assertion on `UitError` exposed the gap correctly.

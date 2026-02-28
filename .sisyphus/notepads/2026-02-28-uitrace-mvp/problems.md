@@ -1,0 +1,1 @@
+- 2026-02-28: Unrelated repository test failures remain outside Task 3 scope (`test_cli_help`, `test_models_roundtrip`).

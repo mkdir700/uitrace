@@ -1,0 +1,3 @@
+- 2026-02-28: Kept exact exit-code mapping from plan, including `UNSUPPORTED_PLATFORM = 11`.
+- 2026-02-28: Used dataclass for `UitError` with typed optional `hint` and `details`.
+- 2026-02-28: Preserved one-line `format_error` contract and wired CLI `main()` to handle `UitError` and `KeyboardInterrupt`.

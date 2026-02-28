@@ -1,0 +1,36 @@
+"""UITrace core module."""
+from uitrace.core.models import (
+    Assert,
+    Click,
+    Point,
+    Pos,
+    Rect,
+    Scroll,
+    SessionEnd,
+    SessionStart,
+    StepResult,
+    TraceEvent,
+    WaitUntil,
+    WindowBounds,
+    WindowSelector,
+    WindowSelectorEvent,
+    Inset,
+)
+
+__all__ = [
+    "Assert",
+    "Click",
+    "Point",
+    "Pos",
+    "Rect",
+    "Scroll",
+    "SessionEnd",
+    "SessionStart",
+    "StepResult",
+    "TraceEvent",
+    "WaitUntil",
+    "WindowBounds",
+    "WindowSelector",
+    "WindowSelectorEvent",
+    "Inset",
+]

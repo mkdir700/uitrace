@@ -1,5 +1,7 @@
 """Error handling for uitrace."""
+from dataclasses import dataclass
 from enum import IntEnum
+from typing import Any
 
 
 class ErrorCode(IntEnum):
@@ -14,21 +16,17 @@ class ErrorCode(IntEnum):
     INTERRUPTED = 130
 
 
+@dataclass(slots=True)
 class UitError(Exception):
     """Unified error for uitrace."""
 
-    def __init__(
-        self,
-        code: ErrorCode,
-        message: str,
-        hint: str | None = None,
-        details: dict | None = None,
-    ):
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.hint = hint
-        self.details = details
+    code: ErrorCode
+    message: str
+    hint: str | None = None
+    details: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        Exception.__init__(self, self.message)
 
 
 def format_error(err: UitError) -> str:

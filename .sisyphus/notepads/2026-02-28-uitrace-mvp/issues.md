@@ -1,0 +1,3 @@
+- 2026-02-28: `@dataclass(slots=True)` + `Exception` with `super().__init__` raised `TypeError` in `__post_init__`.
+- 2026-02-28: Resolved by using `Exception.__init__(self, self.message)` explicitly.
+- 2026-02-28: Full test suite has pre-existing unrelated failures in `tests/test_cli_help.py` and `tests/test_models_roundtrip.py`.
