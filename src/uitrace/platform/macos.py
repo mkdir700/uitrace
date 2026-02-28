@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 
 from uitrace.core.models import Rect
-from uitrace.errors import ErrorCode, UitError
 from uitrace.platform.base import (
     PermissionReport,
     PermissionStatus,
@@ -135,18 +134,16 @@ class MacOSPlatform:
         )
 
     def inject_click(self, x: int, y: int, button: str, count: int) -> None:
-        """Inject click event. Implemented in Task 12."""
-        raise UitError(
-            code=ErrorCode.INJECTION_FAILED,
-            message="Click injection not yet implemented",
-        )
+        """Inject click event via Quartz."""
+        from uitrace.player.executor import MacOSExecutor
+
+        MacOSExecutor().click(x, y, button, count)
 
     def inject_scroll(self, x: int, y: int, delta_y: int) -> None:
-        """Inject scroll event. Implemented in Task 12."""
-        raise UitError(
-            code=ErrorCode.INJECTION_FAILED,
-            message="Scroll injection not yet implemented",
-        )
+        """Inject scroll event via Quartz."""
+        from uitrace.player.executor import MacOSExecutor
+
+        MacOSExecutor().scroll(x, y, delta_y)
 
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
         """Get pixel color. Implemented in Task 17."""
