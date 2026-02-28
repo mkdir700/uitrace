@@ -1,7 +1,7 @@
 """Core models for uitrace trace events."""
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # Shared types
@@ -121,11 +121,29 @@ class WaitUntil(BaseModel):
     v: Literal[1]
     type: Literal["wait_until"]
     ts: float
-    kind: Literal["pixel"]
-    pos: Pos
-    rgb: tuple[int, int, int]
-    tolerance: int = 0
+    kind: Literal["pixel", "window_found"]
+    # pixel-specific fields
+    pos: Pos | None = None
+    rgb: tuple[int, int, int] | None = None
+    tolerance: int | None = None
+    # window_found-specific fields
+    selector: WindowSelector | None = None
+    # shared fields
     timeout_ms: int
+
+    @model_validator(mode="after")
+    def _check_kind_fields(self) -> "WaitUntil":
+        if self.kind == "pixel":
+            if self.pos is None or self.rgb is None:
+                raise ValueError("kind='pixel' requires pos and rgb")
+            if self.selector is not None:
+                raise ValueError("kind='pixel' must not have selector")
+        elif self.kind == "window_found":
+            if self.selector is None:
+                raise ValueError("kind='window_found' requires selector")
+            if self.pos is not None or self.rgb is not None or self.tolerance is not None:
+                raise ValueError("kind='window_found' must not have pos, rgb, or tolerance")
+        return self
 
 
 class SessionEnd(BaseModel):
