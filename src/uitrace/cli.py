@@ -15,9 +15,56 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 
 @app.command("list")
-def list_windows():
+def list_windows(
+    as_json: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
     """List available windows."""
-    raise typer.Exit(code=2)
+    from uitrace.platform import get_platform
+
+    try:
+        platform = get_platform()
+        windows = platform.list_windows()
+    except UitError as e:
+        if as_json:
+            print(json.dumps([], ensure_ascii=False))
+        print(format_error(e), file=sys.stderr)
+        raise typer.Exit(code=int(e.code))
+
+    result = []
+    for idx, w in enumerate(windows):
+        entry = {
+            "id": idx,
+            "window_number": w.window_number,
+            "owner_name": w.owner_name,
+            "pid": w.pid,
+            "title": w.title,
+            "bounds": {"x": w.bounds.x, "y": w.bounds.y, "w": w.bounds.w, "h": w.bounds.h},
+        }
+        result.append(entry)
+
+    if as_json:
+        print(json.dumps(result, ensure_ascii=False))
+    else:
+        from rich.console import Console
+        from rich.table import Table
+
+        console = Console()
+        table = Table(title="Windows")
+        table.add_column("id", justify="right")
+        table.add_column("owner_name")
+        table.add_column("pid", justify="right")
+        table.add_column("title")
+        table.add_column("bounds")
+        for entry in result:
+            table.add_row(
+                str(entry["id"]),
+                entry["owner_name"] or "",
+                str(entry["pid"] or ""),
+                entry["title"] or "",
+                f'{entry["bounds"]["x"]},{entry["bounds"]["y"]}'
+                f' {entry["bounds"]["w"]}x{entry["bounds"]["h"]}',
+            )
+        console.print(table)
 
 
 @app.command("record")
@@ -78,9 +125,18 @@ def validate(path: Path = typer.Argument(..., help="Path to trace JSONL file")):
 
 
 @app.command("doctor")
-def doctor():
+def doctor(
+    as_json: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
     """Diagnose permissions and environment."""
-    raise typer.Exit(code=2)
+    from uitrace.tools.doctor import cmd_doctor
+
+    report = cmd_doctor(as_json=as_json)
+    all_granted = all(
+        p["status"] == "granted" for p in report["permissions"].values()
+    )
+    if not all_granted:
+        raise typer.Exit(code=11)
 
 
 def main():
