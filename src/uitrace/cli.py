@@ -75,28 +75,37 @@ def record(
         1000, "--sample-window-ms", help="Window bounds sample interval (ms)"
     ),
     no_merge: bool = typer.Option(False, "--no-merge", help="Disable event merging"),
+    follow: str = typer.Option("single", "--follow", help="Window follow mode: single or any"),
+    window_wait_timeout_ms: int = typer.Option(
+        5000, "--window-wait-timeout-ms", help="Timeout (ms) for waiting on new windows (follow=any)"
+    ),
 ):
     """Record UI interactions."""
     import logging
 
     from uitrace.platform import get_platform
-    from uitrace.platform.base import PermissionStatus
-    from uitrace.recorder.recorder import Recorder
+    from uitrace.recorder.recorder import Recorder, validate_record_permissions
 
     # Enable diagnostic logging for the capture module
     logging.basicConfig(format="%(message)s", stream=sys.stderr, level=logging.WARNING)
 
     try:
+        # Validate follow mode
+        if follow not in ("single", "any"):
+            raise UitError(
+                code=ErrorCode.INVALID_USAGE,
+                message=f"Invalid --follow value: {follow!r}. Must be 'single' or 'any'",
+            )
+
+        # In follow=any mode, merging is disabled
+        if follow == "any":
+            no_merge = True
+
         platform = get_platform()
 
         # Check permissions first
         perms = platform.check_permissions()
-        if perms.accessibility == PermissionStatus.denied:
-            raise UitError(
-                code=ErrorCode.PERMISSION_DENIED,
-                message="Accessibility permission required for recording",
-                hint="Open System Settings > Privacy & Security > Accessibility",
-            )
+        validate_record_permissions(perms, require_screen_recording=True)
 
         windows = platform.list_windows()
         if not windows:
@@ -143,6 +152,8 @@ def record(
             countdown=countdown,
             sample_window_ms=sample_window_ms,
             merge=not no_merge,
+            follow=follow,
+            window_wait_timeout_ms=window_wait_timeout_ms,
         )
     except UitError as e:
         print(format_error(e), file=sys.stderr)

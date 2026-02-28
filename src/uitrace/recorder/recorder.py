@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, Callable, TextIO
 
 from uitrace.core.models import (
     Click,
@@ -16,10 +16,40 @@ from uitrace.core.models import (
     Scroll,
     SessionEnd,
     SessionStart,
+    WaitUntil,
     WindowBounds,
     WindowSelector,
     WindowSelectorEvent,
 )
+from uitrace.errors import ErrorCode, UitError
+from uitrace.platform.base import PermissionReport, PermissionStatus, WindowRef
+
+
+def validate_record_permissions(
+    perms: PermissionReport, *, require_screen_recording: bool
+) -> None:
+    """Validate required permissions for recording.
+
+    Raises UitError(PERMISSION_DENIED) with exact messages/hints.
+    """
+    if perms.accessibility != PermissionStatus.granted:
+        raise UitError(
+            code=ErrorCode.PERMISSION_DENIED,
+            message="Accessibility permission required for recording",
+            hint="Open System Settings > Privacy & Security > Accessibility",
+        )
+    if perms.input_monitoring != PermissionStatus.granted:
+        raise UitError(
+            code=ErrorCode.PERMISSION_DENIED,
+            message="Input Monitoring permission required for recording",
+            hint="Open System Settings > Privacy & Security > Input Monitoring",
+        )
+    if require_screen_recording and perms.screen_recording != PermissionStatus.granted:
+        raise UitError(
+            code=ErrorCode.PERMISSION_DENIED,
+            message="Screen Recording permission required for recording",
+            hint="Open System Settings > Privacy & Security > Screen Recording",
+        )
 
 
 def _write_event(f: TextIO, event: Any) -> None:
