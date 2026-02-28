@@ -8,14 +8,14 @@ from typing import Any
 def _check_accessibility() -> dict[str, Any]:
     """Check Accessibility permission."""
     try:
-        from ApplicationServices import AXIsProcessTrusted
+        from ApplicationServices import AXIsProcessTrusted  # type: ignore[import-untyped]
 
         trusted = AXIsProcessTrusted()
         return {"status": "granted" if trusted else "denied"}
     except ImportError:
         pass
     try:
-        from Quartz import AXIsProcessTrusted
+        from Quartz import AXIsProcessTrusted  # type: ignore[import-untyped]
 
         trusted = AXIsProcessTrusted()
         return {"status": "granted" if trusted else "denied"}
@@ -27,7 +27,7 @@ def _check_accessibility() -> dict[str, Any]:
 def _check_input_monitoring() -> dict[str, Any]:
     """Check Input Monitoring permission via event tap probe."""
     try:
-        from Quartz import (
+        from Quartz import (  # type: ignore[import-untyped]
             CGEventMaskBit,
             CGEventTapCreate,
             CGEventTapEnable,
@@ -59,7 +59,7 @@ def _check_input_monitoring() -> dict[str, Any]:
 def _check_screen_recording() -> dict[str, Any]:
     """Check Screen Recording permission."""
     try:
-        from Quartz import (
+        from Quartz import (  # type: ignore[import-untyped]
             CGWindowListCopyWindowInfo,
             kCGNullWindowID,
             kCGWindowListOptionOnScreenOnly,

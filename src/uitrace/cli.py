@@ -55,14 +55,14 @@ def list_windows(
         table.add_column("pid", justify="right")
         table.add_column("title")
         table.add_column("bounds")
-        for entry in result:
+        for idx, w in enumerate(windows):
+            b = w.bounds
             table.add_row(
-                str(entry["id"]),
-                entry["owner_name"] or "",
-                str(entry["pid"] or ""),
-                entry["title"] or "",
-                f'{entry["bounds"]["x"]},{entry["bounds"]["y"]}'
-                f' {entry["bounds"]["w"]}x{entry["bounds"]["h"]}',
+                str(idx),
+                w.owner_name or "",
+                str(w.pid or ""),
+                w.title or "",
+                f"{b.x},{b.y} {b.w}x{b.h}",
             )
         console.print(table)
 

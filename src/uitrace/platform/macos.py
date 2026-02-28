@@ -18,7 +18,7 @@ class MacOSPlatform:
 
     def list_windows(self) -> list[WindowRef]:
         """List on-screen windows using CGWindowListCopyWindowInfo."""
-        from Quartz import (
+        from Quartz import (  # type: ignore[import-untyped]
             CGWindowListCopyWindowInfo,
             kCGNullWindowID,
             kCGWindowListOptionOnScreenOnly,
@@ -86,7 +86,7 @@ class MacOSPlatform:
         if win.pid is None:
             return False
         try:
-            from AppKit import NSRunningApplication
+            from AppKit import NSRunningApplication  # type: ignore[import-untyped]
 
             app = NSRunningApplication.runningApplicationWithProcessIdentifier_(win.pid)
             if app is None:
