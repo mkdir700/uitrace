@@ -76,3 +76,7 @@ class Platform(Protocol):
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
         """Return (r, g, b) for the pixel at screen coordinates, or None."""
         ...
+
+    def window_from_point(self, x: int, y: int) -> WindowRef | None:
+        """Return the topmost window at screen coordinates (x, y), or None."""
+        ...

@@ -40,3 +40,6 @@ class UnsupportedPlatform:
 
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
         raise _unsupported()
+
+    def window_from_point(self, x: int, y: int) -> WindowRef | None:
+        raise _unsupported()

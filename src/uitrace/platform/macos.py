@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 
 from uitrace.core.models import Rect
 from uitrace.platform.base import (
@@ -12,8 +13,19 @@ from uitrace.platform.base import (
 )
 
 
+def _rect_contains_point(bounds: Rect, x: int, y: int) -> bool:
+    """Return True if (x, y) is within *bounds* (inclusive edges)."""
+    return (
+        bounds.x <= x <= bounds.x + bounds.w
+        and bounds.y <= y <= bounds.y + bounds.h
+    )
+
+
 class MacOSPlatform:
     """macOS implementation of Platform using Quartz/CoreGraphics."""
+
+    def __init__(self) -> None:
+        self._wfp_cache: tuple[float, list] | None = None
 
     def list_windows(self) -> list[WindowRef]:
         """List on-screen windows using CGWindowListCopyWindowInfo."""
@@ -63,6 +75,70 @@ class MacOSPlatform:
             )
 
         return windows
+
+    def window_from_point(self, x: int, y: int) -> WindowRef | None:
+        """Return the topmost window whose bounds contain *(x, y)*.
+
+        Uses a short-lived cache (50 ms TTL) for the window list to
+        avoid repeated CGWindowListCopyWindowInfo calls during
+        high-frequency hit-testing (e.g. mouse-move recording).
+        """
+        from Quartz import (  # type: ignore[import-untyped]
+            CGWindowListCopyWindowInfo,
+            kCGNullWindowID,
+            kCGWindowListOptionOnScreenOnly,
+        )
+
+        _WFP_TTL = 0.05  # 50 ms
+
+        now = time.monotonic()
+        if self._wfp_cache is not None and (now - self._wfp_cache[0]) < _WFP_TTL:
+            window_info = self._wfp_cache[1]
+        else:
+            window_info = CGWindowListCopyWindowInfo(
+                kCGWindowListOptionOnScreenOnly, kCGNullWindowID
+            )
+            if window_info is None:
+                window_info = []
+            self._wfp_cache = (now, window_info)
+
+        for info in window_info:
+            # Only consider normal-layer windows (layer 0).
+            if int(info.get("kCGWindowLayer", -1)) != 0:
+                continue
+
+            bounds_dict = info.get("kCGWindowBounds")
+            if bounds_dict is None:
+                continue
+
+            bounds = Rect(
+                x=int(bounds_dict.get("X", 0)),
+                y=int(bounds_dict.get("Y", 0)),
+                w=int(bounds_dict.get("Width", 0)),
+                h=int(bounds_dict.get("Height", 0)),
+            )
+
+            if bounds.w <= 1 or bounds.h <= 1:
+                continue
+
+            if not _rect_contains_point(bounds, x, y):
+                continue
+
+            window_number = int(info.get("kCGWindowNumber", 0))
+            owner_name = info.get("kCGWindowOwnerName")
+            pid = int(info.get("kCGWindowOwnerPID", 0)) or None
+            title = info.get("kCGWindowName")
+
+            return WindowRef(
+                handle=str(window_number),
+                title=title,
+                pid=pid,
+                owner_name=owner_name,
+                bounds=bounds,
+                window_number=window_number,
+            )
+
+        return None
 
     def locate(self, selector) -> WindowRef | None:
         """Locate a window matching the selector."""
