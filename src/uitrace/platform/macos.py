@@ -146,5 +146,44 @@ class MacOSPlatform:
         MacOSExecutor().scroll(x, y, delta_y)
 
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
-        """Get pixel color. Implemented in Task 17."""
-        return None
+        """Get pixel color at screen coordinates (points).
+
+        Uses CGDisplayCreateImageForRect to capture a 1x1 area.
+        Requires Screen Recording permission.
+        """
+        try:
+            from AppKit import NSBitmapImageRep, NSScreen  # type: ignore[import-untyped]
+            from Quartz import (  # type: ignore[import-untyped]
+                CGDisplayCreateImageForRect,
+                CGMainDisplayID,
+                CGRectMake,
+            )
+
+            # Convert points to pixels using main screen scale factor
+            screen = NSScreen.mainScreen()
+            if screen is None:
+                return None
+            scale = screen.backingScaleFactor()
+            px = int(round(x * scale))
+            py = int(round(y * scale))
+
+            # Capture 1x1 pixel
+            display_id = CGMainDisplayID()
+            image = CGDisplayCreateImageForRect(display_id, CGRectMake(px, py, 1, 1))
+            if image is None:
+                return None
+
+            bitmap = NSBitmapImageRep.alloc().initWithCGImage_(image)
+            if bitmap is None:
+                return None
+
+            color = bitmap.colorAtX_y_(0, 0)
+            if color is None:
+                return None
+
+            r = int(round(color.redComponent() * 255))
+            g = int(round(color.greenComponent() * 255))
+            b = int(round(color.blueComponent() * 255))
+            return (r, g, b)
+        except Exception:
+            return None
