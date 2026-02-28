@@ -1,5 +1,9 @@
 """CLI entry point for uitrace."""
+import sys
+
 import typer
+
+from uitrace.errors import UitError, format_error
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -42,4 +46,11 @@ def doctor():
 
 def main():
     """Entry point for console script."""
-    app()
+    try:
+        app()
+    except UitError as e:
+        print(format_error(e), file=sys.stderr)
+        sys.exit(e.code)
+    except KeyboardInterrupt:
+        print("\nInterrupted.", file=sys.stderr)
+        sys.exit(130)
