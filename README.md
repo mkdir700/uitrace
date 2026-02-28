@@ -31,7 +31,7 @@ uitrace requires macOS system permissions depending on the command:
 |---------|:---:|:---:|:---:|
 | `list` | - | - | Optional (for window titles) |
 | `doctor` | Check | Check | Check |
-| `record` | Required | Required | - |
+| `record` | Required | Required | `--follow any` mode |
 | `play` | Required | - | - |
 | `play --dry-run` | - | - | - |
 | `validate` / `show` | - | - | - |
@@ -71,6 +71,15 @@ uv run uitrace play --dry-run --speed 2 --from-step 0 --to-step 5 trace.jsonl
 uv run uitrace play trace.jsonl
 ```
 
+#### Multi-Window Recording
+
+Record interactions across multiple windows:
+```bash
+uitrace record --follow any --out trace.jsonl
+```
+
+Screen Recording permission is required for `--follow any` mode.
+
 ### Exit Codes
 
 | Code | Meaning |
@@ -89,6 +98,11 @@ uv run uitrace play trace.jsonl
 JSONL file with one JSON object per line. All events have `v: 1`, `type`, and `ts` (seconds).
 
 Event types: `session_start`, `window_selector`, `window_bounds`, `assert`, `wait_until`, `click`, `scroll`, `session_end`.
+
+#### wait_until
+
+- `kind="pixel"`: Wait until a pixel at a relative position matches an expected RGB color.
+- `kind="window_found"`: Wait until a window matching a selector appears. Used in multi-window recording to wait for newly opened windows.
 
 ### Troubleshooting
 
