@@ -4,13 +4,24 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import TYPE_CHECKING, Callable, Iterator
 
 from uitrace.core.jsonl import read_events
-from uitrace.core.models import StepResult
+from uitrace.core.models import Point, Rect, StepResult
 from uitrace.errors import ErrorCode, UitError
+from uitrace.player.executor import window_rel_to_screen
 
-PLAYABLE_EVENT_TYPES = {"window_bounds", "assert", "wait_until", "click", "scroll"}
+if TYPE_CHECKING:
+    from uitrace.platform.base import Platform, WindowRef
+
+PLAYABLE_EVENT_TYPES = {
+    "window_selector",
+    "window_bounds",
+    "assert",
+    "wait_until",
+    "click",
+    "scroll",
+}
 
 
 class Player:
@@ -19,11 +30,80 @@ class Player:
     def __init__(
         self,
         *,
+        platform: Platform | None = None,
         clock_ns: Callable[[], int] | None = None,
         sleep: Callable[[float], None] | None = None,
     ) -> None:
+        self._platform = platform
         self._clock_ns = clock_ns or time.monotonic_ns
         self._sleep = sleep or time.sleep
+
+    # ------------------------------------------------------------------
+    # Internal helpers for real (non-dry-run) playback
+    # ------------------------------------------------------------------
+
+    def _check_permissions(self) -> None:
+        """Fail-fast if accessibility permission is not granted."""
+        assert self._platform is not None
+        from uitrace.platform.base import PermissionStatus
+
+        report = self._platform.check_permissions()
+        if report.accessibility != PermissionStatus.granted:
+            raise UitError(
+                code=ErrorCode.PERMISSION_DENIED,
+                message="Accessibility permission denied",
+            )
+
+    def _handle_window_selector(self, event: object) -> WindowRef | None:
+        """Locate the target window from a window_selector event."""
+        assert self._platform is not None
+        selector = getattr(event, "selector", None)
+        if selector is None:
+            return None
+        win = self._platform.locate(selector)
+        if win is not None:
+            self._platform.focus(win)
+        return win
+
+    def _handle_window_bounds(
+        self, event: object, win: WindowRef | None
+    ) -> Rect:
+        """Refresh window bounds. Falls back to event.bounds."""
+        if win is not None and self._platform is not None:
+            refreshed = self._platform.get_bounds(win)
+            if refreshed is not None:
+                return refreshed
+        return getattr(event, "bounds", Rect(x=0, y=0, w=0, h=0))
+
+    def _handle_click(
+        self, event: object, bounds: Rect
+    ) -> Point:
+        """Compute screen coords and inject a click. Returns final screen point."""
+        assert self._platform is not None
+        pos = getattr(event, "pos", None)
+        button = getattr(event, "button", "left")
+        count = getattr(event, "count", 1)
+        rx = pos.rx if pos else 0.5
+        ry = pos.ry if pos else 0.5
+        sx, sy = window_rel_to_screen(bounds, rx, ry)
+        self._platform.inject_click(sx, sy, button, count)
+        return Point(x=sx, y=sy)
+
+    def _handle_scroll(
+        self, event: object, bounds: Rect
+    ) -> Point:
+        """Compute screen coords and inject a scroll. Returns final screen point."""
+        assert self._platform is not None
+        pos = getattr(event, "pos", None)
+        delta = getattr(event, "delta", {})
+        rx = pos.rx if pos else 0.5
+        ry = pos.ry if pos else 0.5
+        delta_y: int = delta.get("y", 0) if isinstance(delta, dict) else 0
+        sx, sy = window_rel_to_screen(bounds, rx, ry)
+        self._platform.inject_scroll(sx, sy, delta_y)
+        return Point(x=sx, y=sy)
+
+    # ------------------------------------------------------------------
 
     def run(
         self,
@@ -49,11 +129,40 @@ class Player:
         to_step:
             Last step (0-based, inclusive) to execute. ``None`` means unbounded.
         """
+        # For real playback, check permissions up-front
+        if not dry_run:
+            if self._platform is None:
+                raise UitError(
+                    code=ErrorCode.PERMISSION_DENIED,
+                    message="Platform required for real playback",
+                )
+            try:
+                self._check_permissions()
+            except UitError:
+                # Emit a step_result so the CLI has at least one output line
+                yield StepResult(
+                    type="step_result",
+                    step=0,
+                    event_idx=0,
+                    event_type="permission_check",
+                    status="error",
+                    ok=False,
+                    elapsed_ms=0,
+                    dry_run=False,
+                    error_code=ErrorCode.PERMISSION_DENIED.name,
+                    message="Accessibility permission denied",
+                )
+                raise
+
         effective_from = from_step if from_step is not None else 0
         # to_step None means no upper bound
 
         step = -1  # will be incremented to 0 on first playable event
         prev_ts: float | None = None  # ts of previous *in-range* step
+
+        # State for real playback
+        current_win: WindowRef | None = None
+        current_bounds = Rect(x=0, y=0, w=0, h=0)
 
         for event_idx, event in enumerate(events):
             event_type = event.type
@@ -99,22 +208,67 @@ class Player:
                 )
                 continue
 
-            # Non-dry-run: permission denied until real injection (Task 13)
+            # --- Real playback ---
+            t0 = self._clock_ns()
+            screen_final: Point | None = None
+            try:
+                if event_type == "window_selector":
+                    current_win = self._handle_window_selector(event)
+
+                elif event_type == "window_bounds":
+                    current_bounds = self._handle_window_bounds(
+                        event, current_win
+                    )
+
+                elif event_type == "click":
+                    screen_final = self._handle_click(event, current_bounds)
+
+                elif event_type == "scroll":
+                    screen_final = self._handle_scroll(event, current_bounds)
+
+                elif event_type in ("assert", "wait_until"):
+                    elapsed = (self._clock_ns() - t0) // 1_000_000
+                    yield StepResult(
+                        type="step_result",
+                        step=step,
+                        event_idx=event_idx,
+                        event_type=event_type,
+                        status="error",
+                        ok=False,
+                        elapsed_ms=int(elapsed),
+                        dry_run=False,
+                        error_code="NOT_IMPLEMENTED",
+                        message="not yet implemented",
+                    )
+                    continue
+
+            except UitError as exc:
+                elapsed = (self._clock_ns() - t0) // 1_000_000
+                yield StepResult(
+                    type="step_result",
+                    step=step,
+                    event_idx=event_idx,
+                    event_type=event_type,
+                    status="error",
+                    ok=False,
+                    elapsed_ms=int(elapsed),
+                    dry_run=False,
+                    error_code=ErrorCode.INJECTION_FAILED.name,
+                    message=str(exc),
+                )
+                continue
+
+            elapsed = (self._clock_ns() - t0) // 1_000_000
             yield StepResult(
                 type="step_result",
                 step=step,
                 event_idx=event_idx,
                 event_type=event_type,
-                status="error",
-                ok=False,
-                elapsed_ms=0,
+                status="ok",
+                ok=True,
+                elapsed_ms=int(elapsed),
                 dry_run=False,
-                error_code=ErrorCode.PERMISSION_DENIED.name,
-                message="Playback requires permissions",
-            )
-            raise UitError(
-                code=ErrorCode.PERMISSION_DENIED,
-                message="Playback requires permissions",
+                screen_final=screen_final,
             )
 
 
@@ -127,7 +281,12 @@ def cmd_play(
     to_step: int | None = None,
 ) -> Iterator[StepResult]:
     """Convenience wrapper: read events from file and play them."""
-    player = Player()
+    platform = None
+    if not dry_run:
+        from uitrace.platform import get_platform
+
+        platform = get_platform()
+    player = Player(platform=platform)
     yield from player.run(
         read_events(path),
         dry_run=dry_run,

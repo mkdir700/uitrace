@@ -63,9 +63,11 @@ def test_dry_run_yields_all_playable_steps_0_based():
     player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
     results = list(player.run(iter(_sample_events()), dry_run=True))
 
-    assert len(results) == 4
-    assert [r.step for r in results] == [0, 1, 2, 3]
-    assert [r.event_type for r in results] == ["window_bounds", "assert", "click", "scroll"]
+    assert len(results) == 5
+    assert [r.step for r in results] == [0, 1, 2, 3, 4]
+    assert [r.event_type for r in results] == [
+        "window_selector", "window_bounds", "assert", "click", "scroll",
+    ]
     assert all(r.status == "ok" for r in results)
     assert all(r.dry_run is True for r in results)
     assert all(r.ok is True for r in results)
@@ -76,7 +78,7 @@ def test_dry_run_event_idx_is_0_based_stream_index():
     results = list(player.run(iter(_sample_events()), dry_run=True))
 
     # session_start=0, window_selector=1, window_bounds=2, assert=3, click=4, scroll=5
-    assert [r.event_idx for r in results] == [2, 3, 4, 5]
+    assert [r.event_idx for r in results] == [1, 2, 3, 4, 5]
 
 
 def test_from_to_step_yields_skipped_outside_range():
@@ -85,12 +87,13 @@ def test_from_to_step_yields_skipped_outside_range():
         player.run(iter(_sample_events()), dry_run=True, from_step=1, to_step=2)
     )
 
-    assert len(results) == 4
+    assert len(results) == 5
     assert [(r.step, r.status) for r in results] == [
         (0, "skipped"),
         (1, "ok"),
         (2, "ok"),
         (3, "skipped"),
+        (4, "skipped"),
     ]
 
 
@@ -105,6 +108,7 @@ def test_from_step_only():
         (1, "skipped"),
         (2, "ok"),
         (3, "ok"),
+        (4, "ok"),
     ]
 
 
@@ -119,6 +123,7 @@ def test_to_step_only():
         (1, "ok"),
         (2, "skipped"),
         (3, "skipped"),
+        (4, "skipped"),
     ]
 
 
@@ -126,8 +131,9 @@ def test_speed_affects_sleep_duration():
     slept: list[float] = []
     player = Player(clock_ns=lambda: 0, sleep=slept.append)
 
-    # Events: window_bounds ts=0.0, assert ts=0.1, click ts=0.5, scroll ts=0.8
-    # Deltas between consecutive in-range: 0.1, 0.4, 0.3
+    # Playable events: window_selector ts=0.0, window_bounds ts=0.0, assert ts=0.1,
+    # click ts=0.5, scroll ts=0.8
+    # Deltas between consecutive in-range: 0 (no sleep), 0.1, 0.4, 0.3
     # At speed=2.0 => 0.05, 0.2, 0.15
     list(player.run(iter(_sample_events()), dry_run=True, speed=2.0))
 
@@ -142,10 +148,10 @@ def test_speed_with_slicing_only_sleeps_for_in_range():
     slept: list[float] = []
     player = Player(clock_ns=lambda: 0, sleep=slept.append)
 
-    # from_step=2 (click ts=0.5) to to_step=3 (scroll ts=0.8)
+    # from_step=3 (click ts=0.5) to to_step=4 (scroll ts=0.8)
     list(
         player.run(
-            iter(_sample_events()), dry_run=True, speed=1.0, from_step=2, to_step=3
+            iter(_sample_events()), dry_run=True, speed=1.0, from_step=3, to_step=4
         )
     )
 
@@ -154,7 +160,8 @@ def test_speed_with_slicing_only_sleeps_for_in_range():
     assert abs(slept[0] - 0.3) < 1e-9
 
 
-def test_non_dry_run_raises_permission_denied():
+def test_non_dry_run_without_platform_raises_permission_denied():
+    """Without a platform, real playback fails with PERMISSION_DENIED."""
     player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
     results: list[StepResult] = []
     raised = False
@@ -164,20 +171,20 @@ def test_non_dry_run_raises_permission_denied():
             results.append(r)
     except Exception as e:
         raised = True
-        assert "permissions" in str(e).lower()
+        assert "platform" in str(e).lower() or "permission" in str(e).lower()
 
     assert raised
-    assert len(results) == 1
-    assert results[0].status == "error"
-    assert results[0].error_code == "PERMISSION_DENIED"
+    # No step_result emitted because the error is pre-flight (no platform at all)
+    assert len(results) == 0
 
 
 def test_session_events_are_not_steps():
-    """session_start, window_selector, session_end do not count as steps."""
+    """session_start and session_end do not count as steps."""
     player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
     results = list(player.run(iter(_sample_events()), dry_run=True))
 
     event_types = {r.event_type for r in results}
     assert "session_start" not in event_types
-    assert "window_selector" not in event_types
     assert "session_end" not in event_types
+    # window_selector IS a playable step (used for window locate)
+    assert "window_selector" in event_types
