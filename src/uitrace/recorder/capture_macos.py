@@ -37,6 +37,7 @@ def iter_raw_events(stop_event: threading.Event) -> Iterator[dict]:
         CGEventMaskBit,
         CGEventTapCreate,
         CGEventTapEnable,
+        CGEventTapIsEnabled,
         kCFRunLoopCommonModes,
         kCFRunLoopDefaultMode,
         kCGEventLeftMouseDown,
@@ -75,8 +76,10 @@ def iter_raw_events(stop_event: threading.Event) -> Iterator[dict]:
         kCGEventOtherMouseUp: "other",
     }
 
+    _callback_count = 0
+
     def _callback(proxy, event_type, event, refcon):  # noqa: ARG001
-        nonlocal tap_ref
+        nonlocal tap_ref, _callback_count
 
         # Handle tap disabled events
         if event_type in (kCGEventTapDisabledByTimeout, kCGEventTapDisabledByUserInput):
@@ -85,10 +88,14 @@ def iter_raw_events(stop_event: threading.Event) -> Iterator[dict]:
                 logger.debug("Re-enabled event tap after disable event")
             return event
 
+        _callback_count += 1
         ts = time.monotonic() - session_start_time
         loc = CGEventGetLocation(event)
         x = round(loc.x)
         y = round(loc.y)
+
+        if _callback_count == 1:
+            logger.warning("event tap active – first event: type=%s at (%s,%s)", event_type, x, y)
 
         if event_type in _DOWN_TYPES:
             button = _DOWN_TYPES[event_type]
@@ -142,6 +149,24 @@ def iter_raw_events(stop_event: threading.Event) -> Iterator[dict]:
                 "and grant access to your terminal app."
             ),
         )
+
+    # Verify the tap can actually be enabled (macOS 15+ may create a tap
+    # but silently refuse to enable it without proper Input Monitoring).
+    CGEventTapEnable(tap_ref, True)
+    if not CGEventTapIsEnabled(tap_ref):
+        raise UitError(
+            code=ErrorCode.PERMISSION_DENIED,
+            message=(
+                "Event tap created but cannot be enabled. "
+                "Input Monitoring permission is not effective."
+            ),
+            hint=(
+                "Open System Settings > Privacy & Security > Input Monitoring, "
+                "toggle OFF then ON for your terminal app, then restart the terminal."
+            ),
+        )
+    # Disable again; the run-loop thread will re-enable after setup.
+    CGEventTapEnable(tap_ref, False)
 
     # Create run loop source and add to current run loop
     source = CFMachPortCreateRunLoopSource(None, tap_ref, 0)

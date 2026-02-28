@@ -31,10 +31,9 @@ def list_windows(
         raise typer.Exit(code=int(e.code))
 
     result = []
-    for idx, w in enumerate(windows):
+    for w in windows:
         entry = {
-            "id": idx,
-            "window_number": w.window_number,
+            "id": w.window_number,
             "owner_name": w.owner_name,
             "pid": w.pid,
             "title": w.title,
@@ -55,10 +54,10 @@ def list_windows(
         table.add_column("pid", justify="right")
         table.add_column("title")
         table.add_column("bounds")
-        for idx, w in enumerate(windows):
+        for w in windows:
             b = w.bounds
             table.add_row(
-                str(idx),
+                str(w.window_number),
                 w.owner_name or "",
                 str(w.pid or ""),
                 w.title or "",
@@ -78,9 +77,14 @@ def record(
     no_merge: bool = typer.Option(False, "--no-merge", help="Disable event merging"),
 ):
     """Record UI interactions."""
+    import logging
+
     from uitrace.platform import get_platform
     from uitrace.platform.base import PermissionStatus
     from uitrace.recorder.recorder import Recorder
+
+    # Enable diagnostic logging for the capture module
+    logging.basicConfig(format="%(message)s", stream=sys.stderr, level=logging.WARNING)
 
     try:
         platform = get_platform()
@@ -102,12 +106,17 @@ def record(
             )
 
         if window_id is not None:
-            if window_id < 0 or window_id >= len(windows):
+            target = None
+            for w in windows:
+                if w.window_number == window_id:
+                    target = w
+                    break
+            if target is None:
+                valid_ids = [str(w.window_number) for w in windows[:5]]
                 raise UitError(
                     code=ErrorCode.WINDOW_NOT_FOUND,
-                    message=f"Window ID {window_id} not found (valid: 0-{len(windows) - 1})",
+                    message=f"Window ID {window_id} not found (examples: {', '.join(valid_ids)}...)",
                 )
-            target = windows[window_id]
         else:
             # Default to first window
             target = windows[0]

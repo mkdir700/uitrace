@@ -123,9 +123,13 @@ class Recorder:
 
             last_bounds_check = time.monotonic()
             raw_buffer: list[dict] = []
+            _stat_total = 0
+            _stat_oob = 0
+            _stat_written = 0
 
             try:
                 for raw in iter_raw_events(stop_event):
+                    _stat_total += 1
                     ts = time.monotonic() - ts_start
 
                     # Periodically re-sample window bounds
@@ -148,8 +152,19 @@ class Recorder:
                     # Filter: only events within window bounds
                     ex, ey = raw.get("x", 0), raw.get("y", 0)
                     if not _in_bounds(ex, ey, current_bounds):
+                        if _stat_oob == 0:
+                            # Log first out-of-bounds event for diagnostics
+                            b = current_bounds
+                            print(
+                                f"[debug] first out-of-bounds event: "
+                                f"({ex},{ey}) not in window "
+                                f"({b.x},{b.y})-({b.x+b.w},{b.y+b.h})",
+                                file=sys.stderr,
+                            )
+                        _stat_oob += 1
                         continue
 
+                    _stat_written += 1
                     if merge:
                         raw_buffer.append(raw)
                         # Flush merged events periodically
@@ -176,7 +191,12 @@ class Recorder:
                     ),
                 )
 
-        print(f"Trace written to {out_path}", file=sys.stderr)
+        print(
+            f"Trace written to {out_path}"
+            f"  (events: {_stat_total} captured, {_stat_oob} out-of-bounds,"
+            f" {_stat_written} written)",
+            file=sys.stderr,
+        )
 
     def _flush_merged(
         self,

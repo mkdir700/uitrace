@@ -25,12 +25,18 @@ def _check_accessibility() -> dict[str, Any]:
 
 
 def _check_input_monitoring() -> dict[str, Any]:
-    """Check Input Monitoring permission via event tap probe."""
+    """Check Input Monitoring permission via event tap probe.
+
+    On newer macOS versions, CGEventTapCreate may return a valid tap even
+    without proper Input Monitoring permissions.  The definitive check is
+    whether the tap can actually be *enabled*.
+    """
     try:
         from Quartz import (  # type: ignore[import-untyped]
             CGEventMaskBit,
             CGEventTapCreate,
             CGEventTapEnable,
+            CGEventTapIsEnabled,
             kCGEventLeftMouseDown,
             kCGEventTapOptionListenOnly,
             kCGHeadInsertEventTap,
@@ -48,7 +54,13 @@ def _check_input_monitoring() -> dict[str, Any]:
         )
         if tap is None:
             return {"status": "denied"}
+        # On macOS 15+, the tap may be created but the system refuses to
+        # enable it when Input Monitoring is not properly granted.
+        CGEventTapEnable(tap, True)
+        enabled = CGEventTapIsEnabled(tap)
         CGEventTapEnable(tap, False)
+        if not enabled:
+            return {"status": "denied"}
         return {"status": "granted"}
     except ImportError:
         return {"status": "unknown"}
