@@ -216,7 +216,9 @@ class Recorder:
             follow: Window follow mode ('single' or 'any')
             window_wait_timeout_ms: Timeout for waiting on new windows (follow=any)
         """
-        from uitrace.recorder.capture_macos import iter_raw_events
+        # Force merge=False for follow=any
+        if follow == "any":
+            merge = False
 
         # Countdown
         if countdown > 0:
@@ -224,6 +226,29 @@ class Recorder:
                 print(f"Recording starts in {i}...", file=sys.stderr)
                 time.sleep(1)
             print("Recording!", file=sys.stderr)
+
+        if follow == "any":
+            self._run_follow_any(
+                out_path, platform,
+                window_wait_timeout_ms=window_wait_timeout_ms,
+            )
+        else:
+            self._run_follow_single(
+                out_path, platform, window_ref, selector_dict,
+                sample_window_ms=sample_window_ms, merge=merge,
+            )
+
+    def _run_follow_single(
+        self,
+        out_path: Path,
+        platform: Any,
+        window_ref: Any,
+        selector_dict: dict,
+        sample_window_ms: int = 1000,
+        merge: bool = True,
+    ) -> None:
+        """Run recording session tracking a single window."""
+        from uitrace.recorder.capture_macos import iter_raw_events
 
         # Get initial bounds
         current_bounds = platform.get_bounds(window_ref)
@@ -344,6 +369,143 @@ class Recorder:
         print(
             f"Trace written to {out_path}"
             f"  (events: {_stat_total} captured, {_stat_oob} out-of-bounds,"
+            f" {_stat_written} written)",
+            file=sys.stderr,
+        )
+
+    def _run_follow_any(
+        self,
+        out_path: Path,
+        platform: Any,
+        window_wait_timeout_ms: int = 5000,
+    ) -> None:
+        """Run recording session following any window the user interacts with."""
+        from uitrace.recorder.capture_macos import iter_raw_events
+
+        stop_event = threading.Event()
+        ts_start = time.monotonic()
+
+        current_identity: Any = None
+        current_bounds: Rect | None = None
+        _stat_total = 0
+        _stat_skipped = 0
+        _stat_written = 0
+
+        with open(out_path, "w", encoding="utf-8") as f:
+            # Write session_start
+            _write_event(
+                f,
+                SessionStart(
+                    v=1,
+                    type="session_start",
+                    ts=0.0,
+                    meta={
+                        "tool": "uitrace",
+                        "os": sys.platform,
+                        "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+                    },
+                ),
+            )
+
+            try:
+                for raw in iter_raw_events(stop_event):
+                    _stat_total += 1
+                    kind = raw.get("kind")
+                    if kind not in ("mouse_down", "scroll"):
+                        continue
+
+                    ts = time.monotonic() - ts_start
+                    ex, ey = raw.get("x", 0), raw.get("y", 0)
+
+                    win = platform.window_from_point(ex, ey)
+
+                    # Skip rule
+                    if win is None or win.pid is None or win.owner_name is None:
+                        _stat_skipped += 1
+                        continue
+
+                    identity = _window_identity(win)
+                    selector = _selector_from_win(win)
+                    current_bounds = win.bounds
+
+                    if current_identity is None:
+                        # First window: emit window_selector + window_bounds
+                        current_identity = identity
+                        _write_event(
+                            f,
+                            WindowSelectorEvent(
+                                v=1,
+                                type="window_selector",
+                                ts=round(ts, 6),
+                                selector=WindowSelector(**selector),
+                            ),
+                        )
+                        _write_event(
+                            f,
+                            WindowBounds(
+                                v=1,
+                                type="window_bounds",
+                                ts=round(ts, 6),
+                                bounds=current_bounds,
+                            ),
+                        )
+                    elif identity != current_identity:
+                        # Window switch: emit wait_until + window_selector + window_bounds
+                        current_identity = identity
+                        _write_event(
+                            f,
+                            WaitUntil(
+                                v=1,
+                                type="wait_until",
+                                ts=round(ts, 6),
+                                kind="window_found",
+                                selector=WindowSelector(**selector),
+                                timeout_ms=window_wait_timeout_ms,
+                            ),
+                        )
+                        _write_event(
+                            f,
+                            WindowSelectorEvent(
+                                v=1,
+                                type="window_selector",
+                                ts=round(ts, 6),
+                                selector=WindowSelector(**selector),
+                            ),
+                        )
+                        _write_event(
+                            f,
+                            WindowBounds(
+                                v=1,
+                                type="window_bounds",
+                                ts=round(ts, 6),
+                                bounds=current_bounds,
+                            ),
+                        )
+
+                    # Write interaction event with ts relative to session start
+                    _stat_written += 1
+                    raw_with_ts = {**raw, "ts": ts}
+                    self._write_raw_event(f, raw_with_ts, current_bounds, ts_start)
+
+            except KeyboardInterrupt:
+                pass
+            finally:
+                stop_event.set()
+
+                # Write session_end
+                ts_end = time.monotonic() - ts_start
+                _write_event(
+                    f,
+                    SessionEnd(
+                        v=1,
+                        type="session_end",
+                        ts=round(ts_end, 6),
+                    ),
+                )
+
+        print(
+            f"Trace written to {out_path}"
+            f"  (events: {_stat_total} captured, {_stat_skipped} skipped,"
             f" {_stat_written} written)",
             file=sys.stderr,
         )
