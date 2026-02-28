@@ -7,7 +7,6 @@ logic without requiring macOS Quartz (no CGWindowListCopyWindowInfo).
 from uitrace.core.models import Rect
 from uitrace.platform.macos import _rect_contains_point
 
-
 # ---------------------------------------------------------------------------
 # _rect_contains_point
 # ---------------------------------------------------------------------------

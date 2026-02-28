@@ -77,7 +77,9 @@ def record(
     no_merge: bool = typer.Option(False, "--no-merge", help="Disable event merging"),
     follow: str = typer.Option("single", "--follow", help="Window follow mode: single or any"),
     window_wait_timeout_ms: int = typer.Option(
-        5000, "--window-wait-timeout-ms", help="Timeout (ms) for waiting on new windows (follow=any)"
+        5000,
+        "--window-wait-timeout-ms",
+        help="Timeout (ms) for new windows (follow=any)",
     ),
 ):
     """Record UI interactions."""
@@ -124,7 +126,10 @@ def record(
                 valid_ids = [str(w.window_number) for w in windows[:5]]
                 raise UitError(
                     code=ErrorCode.WINDOW_NOT_FOUND,
-                    message=f"Window ID {window_id} not found (examples: {', '.join(valid_ids)}...)",
+                    message=(
+                        f"Window ID {window_id} not found"
+                        f" (examples: {', '.join(valid_ids)}...)"
+                    ),
                 )
         else:
             # Default to first window

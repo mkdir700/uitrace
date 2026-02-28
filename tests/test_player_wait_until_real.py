@@ -12,9 +12,9 @@ from uitrace.core.models import (
     SessionStart,
     StepResult,
     WaitUntil,
+    WindowBounds,
     WindowSelector,
     WindowSelectorEvent,
-    WindowBounds,
 )
 from uitrace.errors import ErrorCode, UitError
 from uitrace.platform.base import (
@@ -23,7 +23,6 @@ from uitrace.platform.base import (
     WindowRef,
 )
 from uitrace.player.player import Player
-
 
 # ---------------------------------------------------------------------------
 # FakePlatform

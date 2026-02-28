@@ -316,10 +316,18 @@ class Player:
                             )
                         # Fall through to success
                     elif kind == "window_found":
+                        assert self._platform is not None
+                        from uitrace.core.models import WindowSelector as WS
                         selector = getattr(event, "selector", None)
+                        if not isinstance(selector, WS):
+                            selector = WS.model_validate(
+                                selector
+                            ) if selector else WS()
                         timeout_ms = getattr(event, "timeout_ms", 5000)
                         poll_interval = 0.05  # 50ms
-                        deadline = self._clock_ns() + timeout_ms * 1_000_000
+                        deadline = (
+                            self._clock_ns() + timeout_ms * 1_000_000
+                        )
                         found_win = None
                         while self._clock_ns() < deadline:
                             found_win = self._platform.locate(selector)
@@ -328,6 +336,10 @@ class Player:
                             self._sleep(poll_interval)
                         elapsed = (self._clock_ns() - t0) // 1_000_000
                         if found_win is None:
+                            msg = (
+                                "wait_until window_found timed out"
+                                f" after {timeout_ms}ms"
+                            )
                             yield StepResult(
                                 type="step_result",
                                 step=step,
@@ -338,11 +350,11 @@ class Player:
                                 elapsed_ms=int(elapsed),
                                 dry_run=False,
                                 error_code=ErrorCode.WINDOW_NOT_FOUND.name,
-                                message=f"wait_until window_found timed out after {timeout_ms}ms",
+                                message=msg,
                             )
                             raise UitError(
                                 code=ErrorCode.WINDOW_NOT_FOUND,
-                                message=f"wait_until window_found timed out after {timeout_ms}ms",
+                                message=msg,
                             )
                         # Update current window state
                         current_win = found_win
