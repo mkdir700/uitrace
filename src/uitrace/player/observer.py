@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Callable
 
 from uitrace.core.models import Rect
 from uitrace.player.executor import window_rel_to_screen
@@ -92,26 +92,30 @@ def wait_until_pixel(
     tolerance: int = 0,
     timeout_ms: int = 5000,
     poll_interval_ms: int = 50,
+    clock: Callable[[], float] | None = None,
+    sleep: Callable[[float], None] | None = None,
 ) -> dict[str, Any]:
     """Poll pixel color until it matches or timeout.
 
     Returns:
         dict with keys: ok (bool), elapsed_ms (int), observed (dict)
     """
-    start = time.monotonic()
+    _clock = clock or time.monotonic
+    _sleep = sleep or time.sleep
+    start = _clock()
     deadline = start + timeout_ms / 1000.0
     last_result: dict[str, Any] | None = None
 
-    while time.monotonic() < deadline:
+    while _clock() < deadline:
         result = check_pixel(platform, bounds, pos_rx, pos_ry, expected_rgb, tolerance)
         last_result = result
         if result["ok"]:
-            elapsed_ms = round((time.monotonic() - start) * 1000)
+            elapsed_ms = round((_clock() - start) * 1000)
             result["elapsed_ms"] = elapsed_ms
             return result
-        time.sleep(poll_interval_ms / 1000.0)
+        _sleep(poll_interval_ms / 1000.0)
 
-    elapsed_ms = round((time.monotonic() - start) * 1000)
+    elapsed_ms = round((_clock() - start) * 1000)
     if last_result is None:
         last_result = {"ok": False, "observed": {"error": "timeout with no check"}}
     last_result["ok"] = False

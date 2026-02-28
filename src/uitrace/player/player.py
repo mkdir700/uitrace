@@ -88,8 +88,13 @@ class Player:
         pos = getattr(event, "pos", None)
         button = getattr(event, "button", "left")
         count = getattr(event, "count", 1)
-        rx = pos.rx if pos else 0.5
-        ry = pos.ry if pos else 0.5
+        if pos is None:
+            raise UitError(
+                code=ErrorCode.SCHEMA_INVALID,
+                message="Click event missing 'pos' field",
+            )
+        rx = pos.rx
+        ry = pos.ry
         sx, sy = window_rel_to_screen(bounds, rx, ry)
         self._platform.inject_click(sx, sy, button, count)
         return Point(x=sx, y=sy)
@@ -101,8 +106,13 @@ class Player:
         assert self._platform is not None
         pos = getattr(event, "pos", None)
         delta = getattr(event, "delta", {})
-        rx = pos.rx if pos else 0.5
-        ry = pos.ry if pos else 0.5
+        if pos is None:
+            raise UitError(
+                code=ErrorCode.SCHEMA_INVALID,
+                message="Scroll event missing 'pos' field",
+            )
+        rx = pos.rx
+        ry = pos.ry
         delta_y: int = delta.get("y", 0) if isinstance(delta, dict) else 0
         sx, sy = window_rel_to_screen(bounds, rx, ry)
         self._platform.inject_scroll(sx, sy, delta_y)
@@ -322,7 +332,21 @@ class Player:
                         if not isinstance(selector, WS):
                             selector = WS.model_validate(
                                 selector
-                            ) if selector else WS()
+                            ) if selector else None
+                        if selector is None or all(
+                            v is None
+                            for v in (
+                                selector.pid,
+                                selector.app,
+                                selector.title,
+                                selector.title_regex,
+                                selector.bundle_id,
+                            )
+                        ):
+                            raise UitError(
+                                code=ErrorCode.SCHEMA_INVALID,
+                                message="wait_until window_found requires a non-empty selector",
+                            )
                         timeout_ms = getattr(event, "timeout_ms", 5000)
                         poll_interval = 0.05  # 50ms
                         deadline = (

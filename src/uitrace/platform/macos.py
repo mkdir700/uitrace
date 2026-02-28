@@ -140,8 +140,11 @@ class MacOSPlatform:
 
         return None
 
-    def locate(self, selector) -> WindowRef | None:
+    def locate(self, selector: "WindowSelector") -> WindowRef | None:
         """Locate a window matching the selector."""
+        from uitrace.core.models import WindowSelector
+        if not isinstance(selector, WindowSelector):
+            selector = WindowSelector.model_validate(selector)
         windows = self.list_windows()
         for w in windows:
             if selector.pid is not None and w.pid != selector.pid:

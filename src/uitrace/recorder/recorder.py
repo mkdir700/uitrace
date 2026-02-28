@@ -343,9 +343,9 @@ class Recorder:
                     if merge:
                         raw_buffer.append(raw)
                         # Flush merged events periodically
-                        self._flush_merged(f, raw_buffer, current_bounds, ts_start)
+                        self._flush_merged(f, raw_buffer, current_bounds)
                     else:
-                        self._write_raw_event(f, raw, current_bounds, ts_start)
+                        self._write_raw_event(f, raw, current_bounds)
 
             except KeyboardInterrupt:
                 pass
@@ -353,7 +353,7 @@ class Recorder:
                 stop_event.set()
                 # Flush remaining buffer
                 if merge and raw_buffer:
-                    self._flush_merged(f, raw_buffer, current_bounds, ts_start, force=True)
+                    self._flush_merged(f, raw_buffer, current_bounds, force=True)
 
                 # Write session_end
                 ts_end = time.monotonic() - ts_start
@@ -485,7 +485,7 @@ class Recorder:
                     # Write interaction event with ts relative to session start
                     _stat_written += 1
                     raw_with_ts = {**raw, "ts": ts}
-                    self._write_raw_event(f, raw_with_ts, current_bounds, ts_start)
+                    self._write_raw_event(f, raw_with_ts, current_bounds)
 
             except KeyboardInterrupt:
                 pass
@@ -515,7 +515,6 @@ class Recorder:
         f: TextIO,
         buffer: list[dict],
         bounds: Rect,
-        ts_start: float,
         force: bool = False,
     ) -> None:
         """Flush merged events from buffer."""
@@ -532,9 +531,9 @@ class Recorder:
         buffer.clear()
 
         for ev in merged:
-            self._write_merged_event(f, ev, bounds, ts_start)
+            self._write_merged_event(f, ev, bounds)
 
-    def _write_merged_event(self, f: TextIO, ev: dict, bounds: Rect, ts_start: float) -> None:
+    def _write_merged_event(self, f: TextIO, ev: dict, bounds: Rect) -> None:
         """Write a merged event dict as a trace event."""
         ts = ev["ts"]
         x, y = ev["x"], ev["y"]
@@ -566,7 +565,7 @@ class Recorder:
                 ),
             )
 
-    def _write_raw_event(self, f: TextIO, raw: dict, bounds: Rect, ts_start: float) -> None:
+    def _write_raw_event(self, f: TextIO, raw: dict, bounds: Rect) -> None:
         """Write a raw event directly (no merge)."""
         ts = raw["ts"]
         x, y = raw.get("x", 0), raw.get("y", 0)
