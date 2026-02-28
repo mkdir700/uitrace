@@ -72,6 +72,122 @@ def _screen_to_relative(x: int, y: int, bounds: Rect) -> Pos:
     return Pos(rx=round(rx, 6), ry=round(ry, 6))
 
 
+def _window_identity(win: WindowRef) -> Any:
+    """Return an identity key for a window.
+
+    Uses window_number when available; otherwise falls back to
+    (pid, owner_name, title).
+    """
+    if win.window_number is not None:
+        return win.window_number
+    return (win.pid, win.owner_name, win.title)
+
+
+def _selector_from_win(win: WindowRef) -> dict:
+    """Build a selector dict from a WindowRef."""
+    sel: dict[str, Any] = {"platform": "mac", "app": win.owner_name, "pid": win.pid}
+    if win.title is not None:
+        sel["title"] = win.title
+    return sel
+
+
+def process_raw_events_multi_window(
+    raw_events: list[dict],
+    platform_window_from_point: Callable[[int, int], WindowRef | None],
+    window_wait_timeout_ms: int = 5000,
+) -> list[dict]:
+    """Process raw events for multi-window mode.
+
+    Returns a list of trace event dicts (each suitable for model_validate).
+    Inserts wait_until window_found + window_selector + window_bounds on window switches.
+    """
+    result: list[dict] = []
+    current_identity: Any = None
+
+    for raw in raw_events:
+        kind = raw.get("kind")
+        if kind not in ("mouse_down", "scroll"):
+            continue
+
+        x, y = raw.get("x", 0), raw.get("y", 0)
+        ts = raw.get("ts", 0.0)
+
+        win = platform_window_from_point(x, y)
+
+        # Skip rule: no window, no pid, or no owner_name
+        if win is None or win.pid is None or win.owner_name is None:
+            continue
+
+        identity = _window_identity(win)
+        selector = _selector_from_win(win)
+        bounds = win.bounds
+        bounds_dict = {"x": bounds.x, "y": bounds.y, "w": bounds.w, "h": bounds.h}
+
+        if current_identity is None:
+            # First window context: emit window_selector + window_bounds, no wait_until
+            current_identity = identity
+            result.append({
+                "v": 1,
+                "type": "window_selector",
+                "ts": ts,
+                "selector": selector,
+            })
+            result.append({
+                "v": 1,
+                "type": "window_bounds",
+                "ts": ts,
+                "bounds": bounds_dict,
+            })
+        elif identity != current_identity:
+            # Window switch: emit wait_until + window_selector + window_bounds
+            current_identity = identity
+            result.append({
+                "v": 1,
+                "type": "wait_until",
+                "ts": ts,
+                "kind": "window_found",
+                "selector": selector,
+                "timeout_ms": window_wait_timeout_ms,
+            })
+            result.append({
+                "v": 1,
+                "type": "window_selector",
+                "ts": ts,
+                "selector": selector,
+            })
+            result.append({
+                "v": 1,
+                "type": "window_bounds",
+                "ts": ts,
+                "bounds": bounds_dict,
+            })
+
+        # Compute relative position and emit the interaction event
+        pos = _screen_to_relative(x, y, bounds)
+
+        if kind == "mouse_down":
+            result.append({
+                "v": 1,
+                "type": "click",
+                "ts": round(ts, 6),
+                "pos": {"rx": pos.rx, "ry": pos.ry},
+                "screen": {"x": x, "y": y},
+                "button": raw.get("button", "left"),
+                "count": 1,
+            })
+        elif kind == "scroll":
+            result.append({
+                "v": 1,
+                "type": "scroll",
+                "ts": round(ts, 6),
+                "pos": {"rx": pos.rx, "ry": pos.ry},
+                "screen": {"x": x, "y": y},
+                "delta": {"y": raw.get("delta_y", 0)},
+            })
+
+    return result
+
+
 class Recorder:
     """Records mouse events and writes trace JSONL."""
 
@@ -84,6 +200,8 @@ class Recorder:
         countdown: int = 0,
         sample_window_ms: int = 1000,
         merge: bool = True,
+        follow: str = "single",
+        window_wait_timeout_ms: int = 5000,
     ) -> None:
         """Run recording session.
 
@@ -95,6 +213,8 @@ class Recorder:
             countdown: Seconds to wait before recording
             sample_window_ms: Interval to re-sample window bounds (ms)
             merge: Whether to merge mouse down/up into clicks
+            follow: Window follow mode ('single' or 'any')
+            window_wait_timeout_ms: Timeout for waiting on new windows (follow=any)
         """
         from uitrace.recorder.capture_macos import iter_raw_events
 

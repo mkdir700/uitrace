@@ -9,3 +9,18 @@ def test_cli_help_lists_commands():
     assert result.exit_code == 0
     for cmd in ["list", "record", "play", "show", "validate", "doctor"]:
         assert cmd in result.stdout
+
+
+def test_record_help_shows_follow_option():
+    runner = CliRunner()
+    result = runner.invoke(app, ["record", "--help"])
+    assert result.exit_code == 0
+    assert "--follow" in result.stdout
+    assert "single or any" in result.stdout
+
+
+def test_record_help_shows_window_wait_timeout_option():
+    runner = CliRunner()
+    result = runner.invoke(app, ["record", "--help"])
+    assert result.exit_code == 0
+    assert "--window-wait-timeout-ms" in result.stdout
