@@ -1,0 +1,269 @@
+"""Record command runner: captures mouse events and writes trace JSONL."""
+from __future__ import annotations
+
+import json
+import sys
+import threading
+import time
+from pathlib import Path
+from typing import Any, TextIO
+
+from uitrace.core.models import (
+    Click,
+    Point,
+    Pos,
+    Rect,
+    Scroll,
+    SessionEnd,
+    SessionStart,
+    WindowBounds,
+    WindowSelector,
+    WindowSelectorEvent,
+)
+
+
+def _write_event(f: TextIO, event: Any) -> None:
+    """Write a single event as JSON line."""
+    data = event.model_dump()
+    f.write(json.dumps(data, separators=(",", ":"), ensure_ascii=False))
+    f.write("\n")
+    f.flush()
+
+
+def _in_bounds(x: int, y: int, bounds: Rect) -> bool:
+    """Check if screen point is within window bounds."""
+    return bounds.x <= x <= bounds.x + bounds.w and bounds.y <= y <= bounds.y + bounds.h
+
+
+def _screen_to_relative(x: int, y: int, bounds: Rect) -> Pos:
+    """Convert absolute screen coordinates to relative window position."""
+    rx = (x - bounds.x) / bounds.w if bounds.w > 0 else 0.0
+    ry = (y - bounds.y) / bounds.h if bounds.h > 0 else 0.0
+    return Pos(rx=round(rx, 6), ry=round(ry, 6))
+
+
+class Recorder:
+    """Records mouse events and writes trace JSONL."""
+
+    def run(
+        self,
+        out_path: Path,
+        platform: Any,
+        window_ref: Any,
+        selector_dict: dict,
+        countdown: int = 0,
+        sample_window_ms: int = 1000,
+        merge: bool = True,
+    ) -> None:
+        """Run recording session.
+
+        Args:
+            out_path: Output JSONL file path
+            platform: Platform instance (MacOSPlatform)
+            window_ref: Target window (from platform.locate or list)
+            selector_dict: Window selector data for the trace
+            countdown: Seconds to wait before recording
+            sample_window_ms: Interval to re-sample window bounds (ms)
+            merge: Whether to merge mouse down/up into clicks
+        """
+        from uitrace.recorder.capture_macos import iter_raw_events
+
+        # Countdown
+        if countdown > 0:
+            for i in range(countdown, 0, -1):
+                print(f"Recording starts in {i}...", file=sys.stderr)
+                time.sleep(1)
+            print("Recording!", file=sys.stderr)
+
+        # Get initial bounds
+        current_bounds = platform.get_bounds(window_ref)
+        if current_bounds is None:
+            current_bounds = window_ref.bounds
+
+        stop_event = threading.Event()
+        ts_start = time.monotonic()
+
+        with open(out_path, "w", encoding="utf-8") as f:
+            # Write session_start
+            _write_event(
+                f,
+                SessionStart(
+                    v=1,
+                    type="session_start",
+                    ts=0.0,
+                    meta={
+                        "tool": "uitrace",
+                        "os": sys.platform,
+                        "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+                    },
+                ),
+            )
+
+            # Write window_selector
+            _write_event(
+                f,
+                WindowSelectorEvent(
+                    v=1,
+                    type="window_selector",
+                    ts=0.0,
+                    selector=WindowSelector(**selector_dict),
+                ),
+            )
+
+            # Write initial window_bounds
+            _write_event(
+                f,
+                WindowBounds(
+                    v=1,
+                    type="window_bounds",
+                    ts=0.0,
+                    bounds=current_bounds,
+                ),
+            )
+
+            last_bounds_check = time.monotonic()
+            raw_buffer: list[dict] = []
+
+            try:
+                for raw in iter_raw_events(stop_event):
+                    ts = time.monotonic() - ts_start
+
+                    # Periodically re-sample window bounds
+                    now = time.monotonic()
+                    if (now - last_bounds_check) * 1000 >= sample_window_ms:
+                        new_bounds = platform.get_bounds(window_ref)
+                        if new_bounds is not None and new_bounds != current_bounds:
+                            current_bounds = new_bounds
+                            _write_event(
+                                f,
+                                WindowBounds(
+                                    v=1,
+                                    type="window_bounds",
+                                    ts=round(ts, 6),
+                                    bounds=current_bounds,
+                                ),
+                            )
+                        last_bounds_check = now
+
+                    # Filter: only events within window bounds
+                    ex, ey = raw.get("x", 0), raw.get("y", 0)
+                    if not _in_bounds(ex, ey, current_bounds):
+                        continue
+
+                    if merge:
+                        raw_buffer.append(raw)
+                        # Flush merged events periodically
+                        self._flush_merged(f, raw_buffer, current_bounds, ts_start)
+                    else:
+                        self._write_raw_event(f, raw, current_bounds, ts_start)
+
+            except KeyboardInterrupt:
+                pass
+            finally:
+                stop_event.set()
+                # Flush remaining buffer
+                if merge and raw_buffer:
+                    self._flush_merged(f, raw_buffer, current_bounds, ts_start, force=True)
+
+                # Write session_end
+                ts_end = time.monotonic() - ts_start
+                _write_event(
+                    f,
+                    SessionEnd(
+                        v=1,
+                        type="session_end",
+                        ts=round(ts_end, 6),
+                    ),
+                )
+
+        print(f"Trace written to {out_path}", file=sys.stderr)
+
+    def _flush_merged(
+        self,
+        f: TextIO,
+        buffer: list[dict],
+        bounds: Rect,
+        ts_start: float,
+        force: bool = False,
+    ) -> None:
+        """Flush merged events from buffer."""
+        from uitrace.recorder.merge import merge_mouse_events
+
+        if not buffer:
+            return
+
+        # Only flush if we have enough events or force
+        if not force and len(buffer) < 2:
+            return
+
+        merged = list(merge_mouse_events(buffer))
+        buffer.clear()
+
+        for ev in merged:
+            self._write_merged_event(f, ev, bounds, ts_start)
+
+    def _write_merged_event(self, f: TextIO, ev: dict, bounds: Rect, ts_start: float) -> None:
+        """Write a merged event dict as a trace event."""
+        ts = ev["ts"]
+        x, y = ev["x"], ev["y"]
+        pos = _screen_to_relative(x, y, bounds)
+
+        if ev["kind"] == "click":
+            _write_event(
+                f,
+                Click(
+                    v=1,
+                    type="click",
+                    ts=round(ts, 6),
+                    pos=pos,
+                    screen=Point(x=x, y=y),
+                    button=ev.get("button", "left"),
+                    count=ev.get("count", 1),
+                ),
+            )
+        elif ev["kind"] == "scroll":
+            _write_event(
+                f,
+                Scroll(
+                    v=1,
+                    type="scroll",
+                    ts=round(ts, 6),
+                    pos=pos,
+                    screen=Point(x=x, y=y),
+                    delta={"y": ev.get("delta_y", 0)},
+                ),
+            )
+
+    def _write_raw_event(self, f: TextIO, raw: dict, bounds: Rect, ts_start: float) -> None:
+        """Write a raw event directly (no merge)."""
+        ts = raw["ts"]
+        x, y = raw.get("x", 0), raw.get("y", 0)
+        pos = _screen_to_relative(x, y, bounds)
+
+        if raw["kind"] in ("mouse_down", "mouse_up"):
+            # Write as click with count=1 (down only)
+            if raw["kind"] == "mouse_down":
+                _write_event(
+                    f,
+                    Click(
+                        v=1,
+                        type="click",
+                        ts=round(ts, 6),
+                        pos=pos,
+                        screen=Point(x=x, y=y),
+                        button=raw.get("button", "left"),
+                        count=1,
+                    ),
+                )
+        elif raw["kind"] == "scroll":
+            _write_event(
+                f,
+                Scroll(
+                    v=1,
+                    type="scroll",
+                    ts=round(ts, 6),
+                    pos=pos,
+                    screen=Point(x=x, y=y),
+                    delta={"y": raw.get("delta_y", 0)},
+                ),
+            )

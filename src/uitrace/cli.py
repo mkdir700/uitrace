@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from uitrace.errors import UitError, format_error
+from uitrace.errors import ErrorCode, UitError, format_error
 from uitrace.player import cmd_play
 from uitrace.tools.show import cmd_show
 from uitrace.tools.validate import cmd_validate
@@ -68,9 +68,76 @@ def list_windows(
 
 
 @app.command("record")
-def record():
+def record(
+    out: Path = typer.Option("trace.jsonl", "--out", "-o", help="Output JSONL file path"),
+    window_id: int | None = typer.Option(None, "--window-id", help="Window ID from 'list' output"),
+    countdown: int = typer.Option(3, "--countdown", help="Countdown before recording"),
+    sample_window_ms: int = typer.Option(
+        1000, "--sample-window-ms", help="Window bounds sample interval (ms)"
+    ),
+    no_merge: bool = typer.Option(False, "--no-merge", help="Disable event merging"),
+):
     """Record UI interactions."""
-    raise typer.Exit(code=2)
+    from uitrace.platform import get_platform
+    from uitrace.platform.base import PermissionStatus
+    from uitrace.recorder.recorder import Recorder
+
+    try:
+        platform = get_platform()
+
+        # Check permissions first
+        perms = platform.check_permissions()
+        if perms.accessibility == PermissionStatus.denied:
+            raise UitError(
+                code=ErrorCode.PERMISSION_DENIED,
+                message="Accessibility permission required for recording",
+                hint="Open System Settings > Privacy & Security > Accessibility",
+            )
+
+        windows = platform.list_windows()
+        if not windows:
+            raise UitError(
+                code=ErrorCode.WINDOW_NOT_FOUND,
+                message="No windows found",
+            )
+
+        if window_id is not None:
+            if window_id < 0 or window_id >= len(windows):
+                raise UitError(
+                    code=ErrorCode.WINDOW_NOT_FOUND,
+                    message=f"Window ID {window_id} not found (valid: 0-{len(windows) - 1})",
+                )
+            target = windows[window_id]
+        else:
+            # Default to first window
+            target = windows[0]
+            print(
+                f"No --window-id specified, using first window:"
+                f" {target.owner_name} ({target.title})",
+                file=sys.stderr,
+            )
+
+        selector_dict: dict[str, object] = {
+            "app": target.owner_name,
+            "pid": target.pid,
+            "platform": "mac",
+        }
+        if target.title:
+            selector_dict["title"] = target.title
+
+        recorder = Recorder()
+        recorder.run(
+            out_path=out,
+            platform=platform,
+            window_ref=target,
+            selector_dict=selector_dict,
+            countdown=countdown,
+            sample_window_ms=sample_window_ms,
+            merge=not no_merge,
+        )
+    except UitError as e:
+        print(format_error(e), file=sys.stderr)
+        raise typer.Exit(code=int(e.code))
 
 
 @app.command("play")
