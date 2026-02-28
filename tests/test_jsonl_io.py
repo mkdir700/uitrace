@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from uitrace.core.jsonl import read_events
-from uitrace.errors import UitError, ErrorCode
+from uitrace.errors import ErrorCode, UitError
 
 
 def test_read_events_reports_line_number(tmp_path: Path):

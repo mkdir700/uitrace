@@ -1,8 +1,5 @@
 """Core models for uitrace trace events."""
-from typing import Any, Literal, Union, Annotated
-
-from pydantic import BaseModel, ConfigDict, Field, Discriminator
-from typing import Any, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,7 +17,7 @@ class Rect(BaseModel):
 class Inset(BaseModel):
     """Client inset: left, top, right, bottom."""
     model_config = ConfigDict(extra="forbid")
-    l: int
+    l: int  # noqa: E741
     t: int
     r: int
     b: int
@@ -151,17 +148,7 @@ TraceEvent = Annotated[
         WaitUntil,
         SessionEnd,
     ],
-    Field(discriminator="type")
-]
-TraceEvent = Union[
-    SessionStart,
-    WindowSelectorEvent,
-    WindowBounds,
-    Click,
-    Scroll,
-    Assert,
-    WaitUntil,
-    SessionEnd,
+    Field(discriminator="type"),
 ]
 
 

@@ -2,6 +2,7 @@
 from uitrace.core.models import (
     Assert,
     Click,
+    Inset,
     Point,
     Pos,
     Rect,
@@ -14,12 +15,12 @@ from uitrace.core.models import (
     WindowBounds,
     WindowSelector,
     WindowSelectorEvent,
-    Inset,
 )
 
 __all__ = [
     "Assert",
     "Click",
+    "Inset",
     "Point",
     "Pos",
     "Rect",
@@ -32,5 +33,4 @@ __all__ = [
     "WindowBounds",
     "WindowSelector",
     "WindowSelectorEvent",
-    "Inset",
 ]

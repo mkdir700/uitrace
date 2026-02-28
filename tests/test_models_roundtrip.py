@@ -1,6 +1,6 @@
 import pytest
 
-from uitrace.core.models import Click, SessionEnd, TraceEvent
+from uitrace.core.models import Click, SessionEnd
 
 
 def test_parse_valid_click_event():
