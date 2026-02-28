@@ -8,7 +8,7 @@ def get_platform() -> Platform:
     """Get platform implementation for current OS."""
     if sys.platform == "darwin":
         # Lazy import to avoid pyobjc on non-macOS
-        from uitrace.platform.macos import MacOSPlatform
+        from uitrace.platform.macos import MacOSPlatform  # type: ignore[import-untyped]
 
         return MacOSPlatform()
     from uitrace.platform.unsupported import UnsupportedPlatform

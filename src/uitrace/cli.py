@@ -29,11 +29,20 @@ def record():
 @app.command("play")
 def play(
     path: Path = typer.Argument(..., help="Path to trace JSONL file"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Validate playable steps only"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate without injection"),
+    speed: float = typer.Option(1.0, "--speed", help="Playback speed multiplier"),
+    from_step: int | None = typer.Option(None, "--from-step", help="Start step (0-based)"),
+    to_step: int | None = typer.Option(None, "--to-step", help="End step inclusive (0-based)"),
 ):
     """Play back recorded interactions."""
     try:
-        for step_result in cmd_play(path, dry_run=dry_run):
+        for step_result in cmd_play(
+            path,
+            dry_run=dry_run,
+            speed=speed,
+            from_step=from_step,
+            to_step=to_step,
+        ):
             print(
                 json.dumps(
                     step_result.model_dump(exclude_none=True),
