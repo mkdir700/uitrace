@@ -1,3 +1,7 @@
 - 2026-02-28: `@dataclass(slots=True)` + `Exception` with `super().__init__` raised `TypeError` in `__post_init__`.
 - 2026-02-28: Resolved by using `Exception.__init__(self, self.message)` explicitly.
 - 2026-02-28: Full test suite has pre-existing unrelated failures in `tests/test_cli_help.py` and `tests/test_models_roundtrip.py`.
+- 2026-03-01: `Pyright reportMissingImports` still flags `import typer` in LSP diagnostics, while runtime import succeeds via `uv run python -c "import typer"`; treated as environment/indexer mismatch, not a blocker for Task 6 behavior.
+- 2026-03-01: Subagent repeatedly drifted scope; strict session-resume prompts were required to force Task-13-only implementation.
+- 2026-03-01: `show` was repeatedly missed by subagents; direct scoped implementation was required to close final TODO reliably.
+- 2026-03-01: Local `lsp_diagnostics` reports `reportMissingImports` for `typer`/`rich`/package imports in this environment, but `uv run pytest tests/test_show_command.py -q` and `uv run uitrace show --json ...` pass; treated as non-blocking indexer mismatch.

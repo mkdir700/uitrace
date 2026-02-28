@@ -1,3 +1,7 @@
 - 2026-02-28: Task 3 introduces a unified error model via `ErrorCode` + `UitError`.
 - 2026-02-28: `format_error` keeps one-line output with optional hint suffix.
 - 2026-02-28: For TDD red-phase, adding a dataclass assertion on `UitError` exposed the gap correctly.
+- 2026-03-01: Task 6 validate-path fix confirms command-level `except UitError` + `typer.Exit(code=int(e.code))` is the reliable way for `CliRunner.invoke` to surface exit code 40.
+- 2026-03-01: Minimal `play` flow can satisfy acceptance by emitting strict JSONL `step_result` rows in dry-run and a fail-fast permission error row in non-dry-run.
+- 2026-03-01: `show --json` summary is stable with keys `events_total`, `steps_total`, `ts_max`, `types`, and `steps_total` should count only playable event types.
+- 2026-03-01: Task 7 `show` command is covered by CLI tests for both `--json` machine output and default human-readable summary; fixture `trace_v1_valid.jsonl` yields `events_total=7`, `steps_total=4`, `ts_max=1.0`.

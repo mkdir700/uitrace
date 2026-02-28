@@ -158,8 +158,8 @@ Then edit `pyproject.toml` to include:
 - Add `[tool.mypy]` config (python_version=3.12, strict-ish but practical: disallow_untyped_defs=false initially)
 
 **Acceptance Criteria:**
-- [ ] `python -c "import tomllib; tomllib.load(open('pyproject.toml','rb'))"` exits 0
-- [ ] `uv run python -c "import typer, pydantic"` exits 0
+- [x] `python -c "import tomllib; tomllib.load(open('pyproject.toml','rb'))"` exits 0
+- [x] `uv run python -c "import typer, pydantic"` exits 0
 
 **Commit:** YES | Message: `chore: bootstrap uv project tooling`
 
@@ -262,7 +262,7 @@ Expected: FAIL
 - In `cli.py` wrap command bodies with try/except `UitError` and `KeyboardInterrupt` and exit with correct code
 
 **Acceptance Criteria:**
-- [ ] `uv run pytest -q` passes
+- [x] `uv run pytest -q` passes
 
 **Commit:** YES | Message: `feat: add error codes and unified error handling`
 
@@ -394,7 +394,7 @@ Expected: FAIL
 - Writer uses `json.dumps(..., separators=(",", ":"), ensure_ascii=False)` for stable JSONL
 
 **Acceptance Criteria:**
-- [ ] `uv run pytest -q` passes
+- [x] `uv run pytest -q` passes
 
 **Commit:** YES | Message: `feat: add streaming JSONL IO with line errors`
 
@@ -466,7 +466,7 @@ Create `tests/fixtures/trace_v1_invalid.jsonl` with exactly:
 - `cli.py`: `@app.command("validate")` calls tool
 
 **Acceptance Criteria:**
-- [ ] `uv run pytest -q` passes
+- [x] `uv run pytest -q` passes
 
 **Commit:** YES | Message: `feat: add validate command for trace files`
 
@@ -780,8 +780,8 @@ def test_window_rel_to_screen_clamps():
 4) 非 dry-run 时调用 executor 注入；异常映射为 exit 30
 
 **Acceptance Criteria (agent-executable even without permissions):**
-- [ ] 当 Accessibility 未授权时：`uv run uitrace play tests/fixtures/trace_v1_valid.jsonl` 返回 11，stderr 明确提示去打开 Accessibility，并且仍输出至少一条 step_result（status=error, error_code=PERMISSION_DENIED）
-- [ ] `uv run uitrace play --dry-run tests/fixtures/trace_v1_valid.jsonl` 仍返回 0
+- [x] 当 Accessibility 未授权时：`uv run uitrace play tests/fixtures/trace_v1_valid.jsonl` 返回 11，stderr 明确提示去打开 Accessibility，并且仍输出至少一条 step_result（status=error, error_code=PERMISSION_DENIED）
+- [x] `uv run uitrace play --dry-run tests/fixtures/trace_v1_valid.jsonl` 仍返回 0
 
 **Commit:** YES | Message: `feat: enable real playback injection with window locate`
 
