@@ -1,6 +1,9 @@
 ## uitrace
 
-UI trace tool for macOS: record and playback user interactions.
+Record real mouse clicks and scrolls in a macOS window,
+and replay them deterministically from a structured JSONL trace.
+
+Turn GUI interactions into a replayable execution log.
 
 ### Features
 
@@ -16,12 +19,175 @@ UI trace tool for macOS: record and playback user interactions.
 - Python 3.12+
 - uv (recommended)
 
-### Quick Start
+### Installation
+
+#### Option 1: Run directly with `uvx`(recommended)
+
+No installation required. Runs in an isolated environment.
 
 ```bash
+uvx uitrace --help
+```
+
+Specific version:
+
+```bash
+uvx uitrace@0.1.0 --help
+```
+
+#### Option 2: Install with `pip`
+
+Install globally:
+
+```bash
+pip install uitrace
+```
+
+Or install in a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install uitrace
+```
+
+Then run:
+
+```bash
+uitrace --help
+```
+
+Upgrade:
+
+```bash
+pip install -U uitrace
+```
+
+#### Option 3: Install with `uv` (project-style install)
+
+If you prefer `uv`:
+
+```bash
+uv tool install uitrace
+```
+
+Then:
+
+```bash
+uitrace --help
+```
+
+Upgrade:
+
+```bash
+uv tool upgrade uitrace
+```
+
+#### Option 4: Install from source
+
+```bash
+git clone https://github.com/mkdir700/uitrace.git
+cd uitrace
 uv sync
 uv run uitrace --help
 ```
+
+Or install in editable mode:
+
+```bash
+uv pip install -e .
+```
+
+### Execution Modes Overview
+
+| Mode | Installation Required | Permissions Needed | Recommended Use |
+|------|------------------------|--------------------|-----------------|
+| `uvx` | No | Depends on command | CI / quick runs |
+| `pip install` | Yes | Depends on command | Local development |
+| `uv tool install` | Yes | Depends on command | Clean CLI setup |
+| `--dry-run` | No | None | CI validation |
+
+### Versioning
+
+Check installed version:
+
+```bash
+uitrace --version
+```
+
+Check version via `uvx`:
+
+```bash
+uvx uitrace --version
+```
+
+### Quick Start
+
+#### Step 1: List Windows
+
+```bash
+uvx uitrace list
+```
+
+Pick a `window_id` (for example: browser, VS Code, Notes).
+
+#### Step 2: Record Real Interaction
+
+```bash
+uvx uitrace record --window-id 0 --out demo.jsonl --countdown 3
+```
+
+After the countdown:
+
+- Click somewhere
+- Scroll
+- Switch focus briefly (optional)
+- Press `Ctrl+C` to stop
+
+You now have:
+
+- `demo.jsonl`
+- A structured, machine-readable UI trace
+
+#### Step 3: Inspect the Trace
+
+```bash
+uvx uitrace show demo.jsonl
+```
+
+You will see output similar to:
+
+```json
+{"v":1,"type":"session_start","...":"..."}
+{"v":1,"type":"window_bounds","...":"..."}
+{"v":1,"type":"click","x":312,"y":128}
+{"v":1,"type":"scroll","dx":0,"dy":-120}
+{"v":1,"type":"session_end","...":"..."}
+```
+
+This is not a screen recording. It is a deterministic execution log.
+
+#### Step 4: Safe Replay (No Permissions Needed)
+
+```bash
+uvx uitrace play --dry-run demo.jsonl
+```
+
+This validates sequencing and timing without injecting events.
+
+Good for:
+
+- CI validation
+- Agent verification
+- Trace regression tests
+
+#### Step 5: Real Replay
+
+```bash
+uvx uitrace play demo.jsonl
+```
+
+Clicks and scrolls are replayed exactly as recorded.
 
 ### Permissions
 
@@ -44,31 +210,31 @@ Important: The permission target is your **terminal app** (Terminal.app, iTerm2,
 
 ```bash
 # Check permissions
-uv run uitrace doctor
-uv run uitrace doctor --json
+uitrace doctor
+uitrace doctor --json
 
 # List windows
-uv run uitrace list
-uv run uitrace list --json
+uitrace list
+uitrace list --json
 
 # Record interactions (Ctrl+C to stop)
-uv run uitrace record --out trace.jsonl --window-id 0 --countdown 3
+uitrace record --out trace.jsonl --window-id 0 --countdown 3
 
 # Validate a trace file
-uv run uitrace validate trace.jsonl
+uitrace validate trace.jsonl
 
 # Show trace summary
-uv run uitrace show trace.jsonl
-uv run uitrace show --json trace.jsonl
+uitrace show trace.jsonl
+uitrace show --json trace.jsonl
 
 # Playback (dry-run, no permissions needed)
-uv run uitrace play --dry-run trace.jsonl
+uitrace play --dry-run trace.jsonl
 
 # Playback with speed and step slicing
-uv run uitrace play --dry-run --speed 2 --from-step 0 --to-step 5 trace.jsonl
+uitrace play --dry-run --speed 2 --from-step 0 --to-step 5 trace.jsonl
 
 # Real playback (requires Accessibility)
-uv run uitrace play trace.jsonl
+uitrace play trace.jsonl
 ```
 
 #### Multi-Window Recording
@@ -118,6 +284,7 @@ uv run ruff check .     # Lint
 uv run mypy src         # Type check
 uv run pytest -q        # Tests
 ```
+
 ### Release
 
 1. Bump version in `pyproject.toml`.
