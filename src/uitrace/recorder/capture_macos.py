@@ -9,6 +9,28 @@ from typing import Iterator
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# CGEvent scroll field IDs (used for recording and injection)
+# NOTE: Integer fallback values need empirical verification on each macOS
+# version; prefer the symbolic Quartz imports when available.
+# ---------------------------------------------------------------------------
+try:
+    from Quartz import kCGScrollWheelEventScrollPhase as _SCROLL_PHASE_FIELD
+except ImportError:
+    _SCROLL_PHASE_FIELD = 99
+try:
+    from Quartz import kCGScrollWheelEventMomentumPhase as _MOMENTUM_PHASE_FIELD
+except ImportError:
+    _MOMENTUM_PHASE_FIELD = 123
+try:
+    from Quartz import kCGScrollWheelEventIsContinuous as _IS_CONTINUOUS_FIELD
+except ImportError:
+    _IS_CONTINUOUS_FIELD = 88
+try:
+    from Quartz import kCGScrollWheelEventPointDeltaAxis2 as _POINT_DELTA_AXIS2_FIELD
+except ImportError:
+    _POINT_DELTA_AXIS2_FIELD = 97
+
 # Raw event dict format matches what merge.py expects:
 # {"kind": "mouse_down"|"mouse_up"|"scroll", "ts": float,
 #  "x": int, "y": int, "button": str, "delta_y"?: int}

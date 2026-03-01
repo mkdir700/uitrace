@@ -108,7 +108,10 @@ class Scroll(BaseModel):
     ts: float
     pos: Pos
     screen: Point
-    delta: dict[Literal["y"], int]
+    delta: dict[str, int]
+    phase: int | None = None
+    momentum_phase: int | None = None
+    is_continuous: bool | None = None
 
 
 class Assert(BaseModel):
