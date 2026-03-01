@@ -21,7 +21,8 @@ Turn GUI interactions into a replayable execution log.
 
 ### Installation
 
-#### Option 1: Run directly with `uvx`(recommended)
+<details open>
+<summary><strong>Option 1: Run directly with <code>uvx</code> (recommended)</strong></summary>
 
 No installation required. Runs in an isolated environment.
 
@@ -34,8 +35,10 @@ Specific version:
 ```bash
 uvx uitrace@0.1.0 --help
 ```
+</details>
 
-#### Option 2: Install with `pip`
+<details>
+<summary><strong>Option 2: Install with <code>pip</code></strong></summary>
 
 Install globally:
 
@@ -62,8 +65,10 @@ Upgrade:
 ```bash
 pip install -U uitrace
 ```
+</details>
 
-#### Option 3: Install with `uv` (project-style install)
+<details>
+<summary><strong>Option 3: Install with <code>uv</code> (project-style install)</strong></summary>
 
 If you prefer `uv`:
 
@@ -82,8 +87,10 @@ Upgrade:
 ```bash
 uv tool upgrade uitrace
 ```
+</details>
 
-#### Option 4: Install from source
+<details>
+<summary><strong>Option 4: Install from source</strong></summary>
 
 ```bash
 git clone https://github.com/mkdir700/uitrace.git
@@ -97,6 +104,7 @@ Or install in editable mode:
 ```bash
 uv pip install -e .
 ```
+</details>
 
 ### Execution Modes Overview
 
