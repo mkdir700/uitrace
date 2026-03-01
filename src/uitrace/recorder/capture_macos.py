@@ -1,4 +1,5 @@
 """macOS event tap capture for recording raw mouse events."""
+
 from __future__ import annotations
 
 import logging
@@ -141,8 +142,7 @@ def iter_raw_events(stop_event: threading.Event) -> Iterator[dict]:
         raise UitError(
             code=ErrorCode.PERMISSION_DENIED,
             message=(
-                "Cannot create event tap. "
-                "Check Accessibility and Input Monitoring permissions."
+                "Cannot create event tap. Check Accessibility and Input Monitoring permissions."
             ),
             hint=(
                 "Open System Settings > Privacy & Security > Input Monitoring "

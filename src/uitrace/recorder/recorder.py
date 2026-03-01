@@ -1,4 +1,5 @@
 """Record command runner: captures mouse events and writes trace JSONL."""
+
 from __future__ import annotations
 
 import json
@@ -25,9 +26,7 @@ from uitrace.errors import ErrorCode, UitError
 from uitrace.platform.base import PermissionReport, PermissionStatus, WindowRef
 
 
-def validate_record_permissions(
-    perms: PermissionReport, *, require_screen_recording: bool
-) -> None:
+def validate_record_permissions(perms: PermissionReport, *, require_screen_recording: bool) -> None:
     """Validate required permissions for recording.
 
     Raises UitError(PERMISSION_DENIED) with exact messages/hints.
@@ -126,64 +125,78 @@ def process_raw_events_multi_window(
         if current_identity is None:
             # First window context: emit window_selector + window_bounds, no wait_until
             current_identity = identity
-            result.append({
-                "v": 1,
-                "type": "window_selector",
-                "ts": ts,
-                "selector": selector,
-            })
-            result.append({
-                "v": 1,
-                "type": "window_bounds",
-                "ts": ts,
-                "bounds": bounds_dict,
-            })
+            result.append(
+                {
+                    "v": 1,
+                    "type": "window_selector",
+                    "ts": ts,
+                    "selector": selector,
+                }
+            )
+            result.append(
+                {
+                    "v": 1,
+                    "type": "window_bounds",
+                    "ts": ts,
+                    "bounds": bounds_dict,
+                }
+            )
         elif identity != current_identity:
             # Window switch: emit wait_until + window_selector + window_bounds
             current_identity = identity
-            result.append({
-                "v": 1,
-                "type": "wait_until",
-                "ts": ts,
-                "kind": "window_found",
-                "selector": selector,
-                "timeout_ms": window_wait_timeout_ms,
-            })
-            result.append({
-                "v": 1,
-                "type": "window_selector",
-                "ts": ts,
-                "selector": selector,
-            })
-            result.append({
-                "v": 1,
-                "type": "window_bounds",
-                "ts": ts,
-                "bounds": bounds_dict,
-            })
+            result.append(
+                {
+                    "v": 1,
+                    "type": "wait_until",
+                    "ts": ts,
+                    "kind": "window_found",
+                    "selector": selector,
+                    "timeout_ms": window_wait_timeout_ms,
+                }
+            )
+            result.append(
+                {
+                    "v": 1,
+                    "type": "window_selector",
+                    "ts": ts,
+                    "selector": selector,
+                }
+            )
+            result.append(
+                {
+                    "v": 1,
+                    "type": "window_bounds",
+                    "ts": ts,
+                    "bounds": bounds_dict,
+                }
+            )
 
         # Compute relative position and emit the interaction event
         pos = _screen_to_relative(x, y, bounds)
 
         if kind == "mouse_down":
-            result.append({
-                "v": 1,
-                "type": "click",
-                "ts": round(ts, 6),
-                "pos": {"rx": pos.rx, "ry": pos.ry},
-                "screen": {"x": x, "y": y},
-                "button": raw.get("button", "left"),
-                "count": 1,
-            })
+            result.append(
+                {
+                    "v": 1,
+                    "type": "click",
+                    "ts": round(ts, 6),
+                    "pos": {"rx": pos.rx, "ry": pos.ry},
+                    "screen": {"x": x, "y": y},
+                    "button": raw.get("button", "left"),
+                    "count": 1,
+                }
+            )
         elif kind == "scroll":
-            result.append({
-                "v": 1,
-                "type": "scroll",
-                "ts": round(ts, 6),
-                "pos": {"rx": pos.rx, "ry": pos.ry},
-                "screen": {"x": x, "y": y},
-                "delta": {"y": raw.get("delta_y", 0)},
-            })
+            result.append(
+                {
+                    "v": 1,
+                    "type": "scroll",
+                    "ts": round(ts, 6),
+                    "pos": {"rx": pos.rx, "ry": pos.ry},
+                    "screen": {"x": x, "y": y},
+                    "delta": {"y": raw.get("delta_y", 0)},
+                }
+            )
 
     return result
 
@@ -229,13 +242,18 @@ class Recorder:
 
         if follow == "any":
             self._run_follow_any(
-                out_path, platform,
+                out_path,
+                platform,
                 window_wait_timeout_ms=window_wait_timeout_ms,
             )
         else:
             self._run_follow_single(
-                out_path, platform, window_ref, selector_dict,
-                sample_window_ms=sample_window_ms, merge=merge,
+                out_path,
+                platform,
+                window_ref,
+                selector_dict,
+                sample_window_ms=sample_window_ms,
+                merge=merge,
             )
 
     def _run_follow_single(
@@ -333,7 +351,7 @@ class Recorder:
                             print(
                                 f"[debug] first out-of-bounds event: "
                                 f"({ex},{ey}) not in window "
-                                f"({b.x},{b.y})-({b.x+b.w},{b.y+b.h})",
+                                f"({b.x},{b.y})-({b.x + b.w},{b.y + b.h})",
                                 file=sys.stderr,
                             )
                         _stat_oob += 1

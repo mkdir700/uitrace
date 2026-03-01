@@ -222,9 +222,7 @@ def test_wait_until_window_found_timeout():
 
     results: list[StepResult] = []
     with pytest.raises(UitError) as exc_info:
-        for r in player.run(
-            iter(_make_events_window_found(timeout_ms=100)), dry_run=False
-        ):
+        for r in player.run(iter(_make_events_window_found(timeout_ms=100)), dry_run=False):
             results.append(r)
 
     assert exc_info.value.code == ErrorCode.WINDOW_NOT_FOUND
@@ -461,9 +459,7 @@ def test_window_found_focus_waits_for_bounds_change_before_click():
 
     player = Player(platform=platform, clock_ns=lambda: 0, sleep=lambda _: None)
 
-    results: list[StepResult] = list(
-        player.run(iter(events), dry_run=False)
-    )
+    results: list[StepResult] = list(player.run(iter(events), dry_run=False))
 
     # The click must have used the NEW bounds centre:
     #   x = 300 + round(400 * 0.5) = 500

@@ -27,7 +27,11 @@ def test_play_dry_run_emits_step_results_and_returns_0():
     assert result.exit_code == 0
     rows = _json_lines(result.stdout)
     assert [row["event_type"] for row in rows] == [
-        "window_selector", "window_bounds", "assert", "click", "scroll",
+        "window_selector",
+        "window_bounds",
+        "assert",
+        "click",
+        "scroll",
     ]
     assert [row["step"] for row in rows] == [0, 1, 2, 3, 4]
     assert all(row["type"] == "step_result" for row in rows)
@@ -68,9 +72,7 @@ def test_play_dry_run_from_to_step_slicing():
     runner = CliRunner()
     p = Path("tests/fixtures/trace_v1_valid.jsonl")
 
-    result = runner.invoke(
-        app, ["play", "--dry-run", "--from-step", "1", "--to-step", "2", str(p)]
-    )
+    result = runner.invoke(app, ["play", "--dry-run", "--from-step", "1", "--to-step", "2", str(p)])
 
     assert result.exit_code == 0
     rows = _json_lines(result.stdout)
@@ -78,7 +80,11 @@ def test_play_dry_run_from_to_step_slicing():
     assert len(rows) == 5
     statuses = [(row["step"], row["status"]) for row in rows]
     assert statuses == [
-        (0, "skipped"), (1, "ok"), (2, "ok"), (3, "skipped"), (4, "skipped"),
+        (0, "skipped"),
+        (1, "ok"),
+        (2, "ok"),
+        (3, "skipped"),
+        (4, "skipped"),
     ]
 
 
@@ -87,9 +93,7 @@ def test_play_dry_run_skipped_steps_have_event_idx():
     runner = CliRunner()
     p = Path("tests/fixtures/trace_v1_valid.jsonl")
 
-    result = runner.invoke(
-        app, ["play", "--dry-run", "--from-step", "3", "--to-step", "3", str(p)]
-    )
+    result = runner.invoke(app, ["play", "--dry-run", "--from-step", "3", "--to-step", "3", str(p)])
 
     assert result.exit_code == 0
     rows = _json_lines(result.stdout)
@@ -99,5 +103,9 @@ def test_play_dry_run_skipped_steps_have_event_idx():
     assert [row["event_idx"] for row in rows] == [1, 2, 3, 4, 5]
     assert [row["step"] for row in rows] == [0, 1, 2, 3, 4]
     assert [row["status"] for row in rows] == [
-        "skipped", "skipped", "skipped", "ok", "skipped",
+        "skipped",
+        "skipped",
+        "skipped",
+        "ok",
+        "skipped",
     ]

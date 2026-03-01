@@ -1,4 +1,5 @@
 """JSONL IO for trace events."""
+
 import json
 from pathlib import Path
 from typing import Any, Generator, Iterator
@@ -9,7 +10,7 @@ from uitrace.errors import ErrorCode, UitError
 
 def iter_json_objects(path: Path) -> Generator[tuple[int, dict[str, Any]], None, None]:
     """Iterate JSON objects from a JSONL file.
-    
+
     Yields: (line_number, parsed_object)
     """
     with open(path, "r", encoding="utf-8") as f:
@@ -29,9 +30,9 @@ def iter_json_objects(path: Path) -> Generator[tuple[int, dict[str, Any]], None,
 
 def read_events(path: Path) -> Iterator[TraceEvent]:
     """Read and validate trace events from a JSONL file.
-    
+
     Yields: TraceEvent objects
-    
+
     Raises:
         UitError: If any line is invalid
     """
@@ -41,27 +42,35 @@ def read_events(path: Path) -> Iterator[TraceEvent]:
             event_type = obj.get("type")
             if event_type == "session_start":
                 from uitrace.core.models import SessionStart
+
                 yield SessionStart.model_validate(obj)
             elif event_type == "window_selector":
                 from uitrace.core.models import WindowSelectorEvent
+
                 yield WindowSelectorEvent.model_validate(obj)
             elif event_type == "window_bounds":
                 from uitrace.core.models import WindowBounds
+
                 yield WindowBounds.model_validate(obj)
             elif event_type == "click":
                 from uitrace.core.models import Click
+
                 yield Click.model_validate(obj)
             elif event_type == "scroll":
                 from uitrace.core.models import Scroll
+
                 yield Scroll.model_validate(obj)
             elif event_type == "assert":
                 from uitrace.core.models import Assert
+
                 yield Assert.model_validate(obj)
             elif event_type == "wait_until":
                 from uitrace.core.models import WaitUntil
+
                 yield WaitUntil.model_validate(obj)
             elif event_type == "session_end":
                 from uitrace.core.models import SessionEnd
+
                 yield SessionEnd.model_validate(obj)
             else:
                 raise UitError(

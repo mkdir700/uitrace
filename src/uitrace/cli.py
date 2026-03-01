@@ -127,8 +127,7 @@ def record(
                 raise UitError(
                     code=ErrorCode.WINDOW_NOT_FOUND,
                     message=(
-                        f"Window ID {window_id} not found"
-                        f" (examples: {', '.join(valid_ids)}...)"
+                        f"Window ID {window_id} not found (examples: {', '.join(valid_ids)}...)"
                     ),
                 )
         else:
@@ -224,9 +223,7 @@ def doctor(
     from uitrace.tools.doctor import cmd_doctor
 
     report = cmd_doctor(as_json=as_json)
-    all_granted = all(
-        p["status"] == "granted" for p in report["permissions"].values()
-    )
+    all_granted = all(p["status"] == "granted" for p in report["permissions"].values())
     if not all_granted:
         raise typer.Exit(code=11)
 

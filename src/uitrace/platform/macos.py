@@ -15,10 +15,7 @@ from uitrace.platform.base import (
 
 def _rect_contains_point(bounds: Rect, x: int, y: int) -> bool:
     """Return True if (x, y) is within *bounds* (inclusive edges)."""
-    return (
-        bounds.x <= x <= bounds.x + bounds.w
-        and bounds.y <= y <= bounds.y + bounds.h
-    )
+    return bounds.x <= x <= bounds.x + bounds.w and bounds.y <= y <= bounds.y + bounds.h
 
 
 class MacOSPlatform:
@@ -35,9 +32,7 @@ class MacOSPlatform:
             kCGWindowListOptionOnScreenOnly,
         )
 
-        window_info = CGWindowListCopyWindowInfo(
-            kCGWindowListOptionOnScreenOnly, kCGNullWindowID
-        )
+        window_info = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
         if window_info is None:
             return []
 
@@ -194,17 +189,13 @@ class MacOSPlatform:
             return
         try:
             app_ref = AXUIElementCreateApplication(win.pid)
-            err, ax_windows = AXUIElementCopyAttributeValue(
-                app_ref, "AXWindows", None
-            )
+            err, ax_windows = AXUIElementCopyAttributeValue(app_ref, "AXWindows", None)
             if err != 0 or not ax_windows:
                 return
             target = None
             if win.title:
                 for ax_win in ax_windows:
-                    err2, title = AXUIElementCopyAttributeValue(
-                        ax_win, "AXTitle", None
-                    )
+                    err2, title = AXUIElementCopyAttributeValue(ax_win, "AXTitle", None)
                     if err2 == 0 and title == win.title:
                         target = ax_win
                         break

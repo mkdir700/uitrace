@@ -1,4 +1,5 @@
 """Error handling for uitrace."""
+
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
@@ -6,6 +7,7 @@ from typing import Any
 
 class ErrorCode(IntEnum):
     """Exit codes for uitrace CLI."""
+
     INVALID_USAGE = 2
     WINDOW_NOT_FOUND = 10
     PERMISSION_DENIED = 11

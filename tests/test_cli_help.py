@@ -4,7 +4,6 @@ from typer.testing import CliRunner
 
 from uitrace.cli import app
 
-
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 

@@ -77,9 +77,7 @@ def _check_screen_recording() -> dict[str, Any]:
             kCGWindowListOptionOnScreenOnly,
         )
 
-        windows = CGWindowListCopyWindowInfo(
-            kCGWindowListOptionOnScreenOnly, kCGNullWindowID
-        )
+        windows = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
         if windows is None:
             return {"status": "denied"}
         for w in windows:
@@ -157,13 +155,7 @@ def _print_rich(report: dict[str, Any]) -> None:
 
     for name, perm in report["permissions"].items():
         status = perm["status"]
-        style = (
-            "green"
-            if status == "granted"
-            else "red"
-            if status == "denied"
-            else "yellow"
-        )
+        style = "green" if status == "granted" else "red" if status == "denied" else "yellow"
         table.add_row(name, f"[{style}]{status}[/{style}]")
 
     console.print(table)

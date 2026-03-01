@@ -1,4 +1,5 @@
 """Observation and assertion support for player."""
+
 from __future__ import annotations
 
 import time
@@ -8,9 +9,7 @@ from uitrace.core.models import Rect
 from uitrace.player.executor import window_rel_to_screen
 
 
-def check_window_title_contains(
-    platform: Any, window_ref: Any, expected: str
-) -> dict[str, Any]:
+def check_window_title_contains(platform: Any, window_ref: Any, expected: str) -> dict[str, Any]:
     """Check if window title contains expected string.
 
     Returns:

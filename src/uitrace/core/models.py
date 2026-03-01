@@ -1,4 +1,5 @@
 """Core models for uitrace trace events."""
+
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -7,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # Shared types
 class Rect(BaseModel):
     """Rectangle with x, y, width, height."""
+
     model_config = ConfigDict(extra="forbid")
     x: int
     y: int
@@ -16,6 +18,7 @@ class Rect(BaseModel):
 
 class Inset(BaseModel):
     """Client inset: left, top, right, bottom."""
+
     model_config = ConfigDict(extra="forbid")
     l: int  # noqa: E741
     t: int
@@ -25,6 +28,7 @@ class Inset(BaseModel):
 
 class Pos(BaseModel):
     """Relative position (0-1) within a window."""
+
     model_config = ConfigDict(extra="forbid")
     rx: float
     ry: float
@@ -32,6 +36,7 @@ class Pos(BaseModel):
 
 class Point(BaseModel):
     """Absolute screen position in points."""
+
     model_config = ConfigDict(extra="forbid")
     x: int
     y: int
@@ -39,6 +44,7 @@ class Point(BaseModel):
 
 class WindowSelector(BaseModel):
     """Selector to locate a window."""
+
     model_config = ConfigDict(extra="forbid")
     title_regex: str | None = None
     title: str | None = None
@@ -51,6 +57,7 @@ class WindowSelector(BaseModel):
 # Trace events
 class SessionStart(BaseModel):
     """Session start event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["session_start"]
@@ -60,6 +67,7 @@ class SessionStart(BaseModel):
 
 class WindowSelectorEvent(BaseModel):
     """Window selector event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["window_selector"]
@@ -69,6 +77,7 @@ class WindowSelectorEvent(BaseModel):
 
 class WindowBounds(BaseModel):
     """Window bounds event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["window_bounds"]
@@ -79,6 +88,7 @@ class WindowBounds(BaseModel):
 
 class Click(BaseModel):
     """Click event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["click"]
@@ -91,6 +101,7 @@ class Click(BaseModel):
 
 class Scroll(BaseModel):
     """Scroll event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["scroll"]
@@ -102,6 +113,7 @@ class Scroll(BaseModel):
 
 class Assert(BaseModel):
     """Assertion event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["assert"]
@@ -117,6 +129,7 @@ class Assert(BaseModel):
 
 class WaitUntil(BaseModel):
     """Wait until event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["wait_until"]
@@ -148,6 +161,7 @@ class WaitUntil(BaseModel):
 
 class SessionEnd(BaseModel):
     """Session end event."""
+
     model_config = ConfigDict(extra="forbid")
     v: Literal[1]
     type: Literal["session_end"]
@@ -173,6 +187,7 @@ TraceEvent = Annotated[
 # StepResult (output, not part of TraceEvent union)
 class StepResult(BaseModel):
     """Result of executing a step."""
+
     model_config = ConfigDict(extra="forbid")
     type: Literal["step_result"]
     step: int

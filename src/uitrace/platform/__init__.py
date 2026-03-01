@@ -1,4 +1,5 @@
 """Platform abstraction for uitrace."""
+
 import sys
 
 from uitrace.platform.base import Platform

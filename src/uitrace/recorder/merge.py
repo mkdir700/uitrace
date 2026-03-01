@@ -117,8 +117,7 @@ def merge_mouse_events(raw_events: Iterable[dict]) -> Iterator[dict]:
                             and pending_click["x"] == new_click["x"]
                             and pending_click["y"] == new_click["y"]
                             and pending_click["button"] == new_click["button"]
-                            and new_click["ts"] - pending_click["ts"]
-                            <= _DOUBLE_CLICK_TIMEOUT
+                            and new_click["ts"] - pending_click["ts"] <= _DOUBLE_CLICK_TIMEOUT
                         ):
                             pending_click["count"] = 2
                             # Don't buffer new_click; the merged result
@@ -147,9 +146,7 @@ def merge_mouse_events(raw_events: Iterable[dict]) -> Iterator[dict]:
                 j += 1
 
             if not matched:
-                logger.debug(
-                    "orphan mouse_down at ts=%.3f discarded", down_ts
-                )
+                logger.debug("orphan mouse_down at ts=%.3f discarded", down_ts)
                 i += 1
             continue
 

@@ -72,9 +72,7 @@ class Player:
                 message="Window not found for selector",
             )
 
-    def _handle_window_bounds(
-        self, event: object, win: WindowRef | None
-    ) -> Rect:
+    def _handle_window_bounds(self, event: object, win: WindowRef | None) -> Rect:
         """Refresh window bounds. Falls back to event.bounds."""
         if win is not None and self._platform is not None:
             refreshed = self._platform.get_bounds(win)
@@ -82,9 +80,7 @@ class Player:
                 return refreshed
         return getattr(event, "bounds", Rect(x=0, y=0, w=0, h=0))
 
-    def _refresh_bounds(
-        self, win: WindowRef | None, bounds: Rect
-    ) -> Rect:
+    def _refresh_bounds(self, win: WindowRef | None, bounds: Rect) -> Rect:
         """Best-effort refresh for current window bounds."""
         if win is not None and self._platform is not None:
             refreshed = self._platform.get_bounds(win)
@@ -92,9 +88,7 @@ class Player:
                 return refreshed
         return bounds
 
-    def _wait_bounds_settle_after_focus(
-        self, win: "WindowRef", baseline: Rect
-    ) -> Rect:
+    def _wait_bounds_settle_after_focus(self, win: "WindowRef", baseline: Rect) -> Rect:
         """Wait for window bounds to change from *baseline* then stabilise.
 
         After a focus()+center, the system may take several frames to update
@@ -146,9 +140,7 @@ class Player:
 
         return last_bounds
 
-    def _handle_click(
-        self, event: object, bounds: Rect
-    ) -> Point:
+    def _handle_click(self, event: object, bounds: Rect) -> Point:
         """Compute screen coords and inject a click. Returns final screen point."""
         assert self._platform is not None
         pos = getattr(event, "pos", None)
@@ -165,9 +157,7 @@ class Player:
         self._platform.inject_click(sx, sy, button, count)
         return Point(x=sx, y=sy)
 
-    def _handle_scroll(
-        self, event: object, bounds: Rect
-    ) -> Point:
+    def _handle_scroll(self, event: object, bounds: Rect) -> Point:
         """Compute screen coords and inject a scroll. Returns final screen point."""
         assert self._platform is not None
         pos = getattr(event, "pos", None)
@@ -252,9 +242,7 @@ class Player:
 
             step += 1
 
-            in_range = step >= effective_from and (
-                to_step is None or step <= to_step
-            )
+            in_range = step >= effective_from and (to_step is None or step <= to_step)
 
             if not in_range:
                 yield StepResult(
@@ -299,9 +287,7 @@ class Player:
                         current_win, current_bounds = sel_result
 
                 elif event_type == "window_bounds":
-                    current_bounds = self._handle_window_bounds(
-                        event, current_win
-                    )
+                    current_bounds = self._handle_window_bounds(event, current_win)
 
                 elif event_type == "click":
                     current_bounds = self._refresh_bounds(current_win, current_bounds)
@@ -400,11 +386,10 @@ class Player:
                     elif kind == "window_found":
                         assert self._platform is not None
                         from uitrace.core.models import WindowSelector as WS
+
                         selector = getattr(event, "selector", None)
                         if not isinstance(selector, WS):
-                            selector = WS.model_validate(
-                                selector
-                            ) if selector else None
+                            selector = WS.model_validate(selector) if selector else None
                         if selector is None or all(
                             v is None
                             for v in (
@@ -421,9 +406,7 @@ class Player:
                             )
                         timeout_ms = getattr(event, "timeout_ms", 5000)
                         poll_interval = 0.05  # 50ms
-                        deadline = (
-                            self._clock_ns() + timeout_ms * 1_000_000
-                        )
+                        deadline = self._clock_ns() + timeout_ms * 1_000_000
                         found_win = None
                         while self._clock_ns() < deadline:
                             found_win = self._platform.locate(selector)
@@ -432,10 +415,7 @@ class Player:
                             self._sleep(poll_interval)
                         elapsed = (self._clock_ns() - t0) // 1_000_000
                         if found_win is None:
-                            msg = (
-                                "wait_until window_found timed out"
-                                f" after {timeout_ms}ms"
-                            )
+                            msg = f"wait_until window_found timed out after {timeout_ms}ms"
                             yield StepResult(
                                 type="step_result",
                                 step=step,

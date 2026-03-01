@@ -1,4 +1,5 @@
 """Tests for multi-window recording via process_raw_events_multi_window."""
+
 from __future__ import annotations
 
 from uitrace.core.models import Rect

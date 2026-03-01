@@ -1,4 +1,5 @@
 """Unsupported platform stub that raises on every call."""
+
 from __future__ import annotations
 
 from uitrace.core.models import Rect, WindowSelector

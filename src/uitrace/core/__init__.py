@@ -1,4 +1,5 @@
 """UITrace core module."""
+
 from uitrace.core.models import (
     Assert,
     Click,

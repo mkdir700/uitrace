@@ -26,6 +26,7 @@ def test_extra_fields_forbidden():
 
 # --- wait_until window_found tests ---
 
+
 def test_parse_wait_until_window_found():
     raw = {
         "v": 1,

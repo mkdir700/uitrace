@@ -1,4 +1,5 @@
 """macOS Quartz executor for click/scroll injection."""
+
 from __future__ import annotations
 
 from uitrace.core.models import Rect

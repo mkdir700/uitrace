@@ -66,7 +66,11 @@ def test_dry_run_yields_all_playable_steps_0_based():
     assert len(results) == 5
     assert [r.step for r in results] == [0, 1, 2, 3, 4]
     assert [r.event_type for r in results] == [
-        "window_selector", "window_bounds", "assert", "click", "scroll",
+        "window_selector",
+        "window_bounds",
+        "assert",
+        "click",
+        "scroll",
     ]
     assert all(r.status == "ok" for r in results)
     assert all(r.dry_run is True for r in results)
@@ -83,9 +87,7 @@ def test_dry_run_event_idx_is_0_based_stream_index():
 
 def test_from_to_step_yields_skipped_outside_range():
     player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
-    results = list(
-        player.run(iter(_sample_events()), dry_run=True, from_step=1, to_step=2)
-    )
+    results = list(player.run(iter(_sample_events()), dry_run=True, from_step=1, to_step=2))
 
     assert len(results) == 5
     assert [(r.step, r.status) for r in results] == [
@@ -99,9 +101,7 @@ def test_from_to_step_yields_skipped_outside_range():
 
 def test_from_step_only():
     player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
-    results = list(
-        player.run(iter(_sample_events()), dry_run=True, from_step=2)
-    )
+    results = list(player.run(iter(_sample_events()), dry_run=True, from_step=2))
 
     assert [(r.step, r.status) for r in results] == [
         (0, "skipped"),
@@ -114,9 +114,7 @@ def test_from_step_only():
 
 def test_to_step_only():
     player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
-    results = list(
-        player.run(iter(_sample_events()), dry_run=True, to_step=1)
-    )
+    results = list(player.run(iter(_sample_events()), dry_run=True, to_step=1))
 
     assert [(r.step, r.status) for r in results] == [
         (0, "ok"),
@@ -149,11 +147,7 @@ def test_speed_with_slicing_only_sleeps_for_in_range():
     player = Player(clock_ns=lambda: 0, sleep=slept.append)
 
     # from_step=3 (click ts=0.5) to to_step=4 (scroll ts=0.8)
-    list(
-        player.run(
-            iter(_sample_events()), dry_run=True, speed=1.0, from_step=3, to_step=4
-        )
-    )
+    list(player.run(iter(_sample_events()), dry_run=True, speed=1.0, from_step=3, to_step=4))
 
     # Only one sleep between the two in-range steps: 0.8 - 0.5 = 0.3
     assert len(slept) == 1
