@@ -15,19 +15,19 @@ logger = logging.getLogger(__name__)
 # version; prefer the symbolic Quartz imports when available.
 # ---------------------------------------------------------------------------
 try:
-    from Quartz import kCGScrollWheelEventScrollPhase as _SCROLL_PHASE_FIELD
+    from Quartz import kCGScrollWheelEventScrollPhase as _SCROLL_PHASE_FIELD  # type: ignore[import-untyped]  # noqa: I001
 except ImportError:
     _SCROLL_PHASE_FIELD = 99
 try:
-    from Quartz import kCGScrollWheelEventMomentumPhase as _MOMENTUM_PHASE_FIELD
+    from Quartz import kCGScrollWheelEventMomentumPhase as _MOMENTUM_PHASE_FIELD  # type: ignore[import-untyped]  # noqa: I001
 except ImportError:
     _MOMENTUM_PHASE_FIELD = 123
 try:
-    from Quartz import kCGScrollWheelEventIsContinuous as _IS_CONTINUOUS_FIELD
+    from Quartz import kCGScrollWheelEventIsContinuous as _IS_CONTINUOUS_FIELD  # type: ignore[import-untyped]  # noqa: I001
 except ImportError:
     _IS_CONTINUOUS_FIELD = 88
 try:
-    from Quartz import kCGScrollWheelEventPointDeltaAxis2 as _POINT_DELTA_AXIS2_FIELD
+    from Quartz import kCGScrollWheelEventPointDeltaAxis2 as _POINT_DELTA_AXIS2_FIELD  # type: ignore[import-untyped]  # noqa: I001
 except ImportError:
     _POINT_DELTA_AXIS2_FIELD = 97
 
