@@ -182,3 +182,42 @@ def test_session_events_are_not_steps():
     assert "session_end" not in event_types
     # window_selector IS a playable step (used for window locate)
     assert "window_selector" in event_types
+
+
+def test_dry_run_scroll_with_phase_data():
+    """dry_run works with a Scroll event that carries phase data."""
+    events = [
+        SessionStart(v=1, type="session_start", ts=0.0, meta={"tool": "uitrace"}),
+        WindowSelectorEvent(
+            v=1,
+            type="window_selector",
+            ts=0.0,
+            selector=WindowSelector(title_regex=".*TextEdit.*", app="TextEdit", platform="mac"),
+        ),
+        WindowBounds(
+            v=1,
+            type="window_bounds",
+            ts=0.0,
+            bounds=Rect(x=100, y=100, w=800, h=600),
+            client_inset=Inset(l=0, t=0, r=0, b=0),
+        ),
+        Scroll(
+            v=1,
+            type="scroll",
+            ts=0.5,
+            pos=Pos(rx=0.5, ry=0.5),
+            screen=Point(x=500, y=400),
+            delta={"x": 3, "y": -10},
+            phase=2,
+            momentum_phase=0,
+            is_continuous=True,
+        ),
+        SessionEnd(v=1, type="session_end", ts=1.0),
+    ]
+    player = Player(clock_ns=lambda: 0, sleep=lambda _s: None)
+    results = list(player.run(iter(events), dry_run=True))
+
+    scroll_results = [r for r in results if r.event_type == "scroll"]
+    assert len(scroll_results) == 1
+    assert scroll_results[0].status == "ok"
+    assert scroll_results[0].dry_run is True

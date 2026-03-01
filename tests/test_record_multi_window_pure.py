@@ -335,6 +335,37 @@ def test_window_identity_fallback_without_window_number():
     assert len(wait_events) == 1
 
 
+def test_scroll_with_phase_in_multi_window():
+    """Scroll events with phase data should pass through in multi-window mode."""
+    raw_events = [
+        {"kind": "mouse_down", "x": 400, "y": 300, "ts": 1.0, "button": "left"},
+        {
+            "kind": "scroll",
+            "x": 400,
+            "y": 300,
+            "ts": 2.0,
+            "delta_y": -5,
+            "delta_x": 3,
+            "phase": 2,
+            "momentum_phase": 0,
+            "is_continuous": True,
+        },
+    ]
+
+    def fake_window_from_point(x: int, y: int) -> WindowRef | None:
+        return WIN_A
+
+    result = process_raw_events_multi_window(raw_events, fake_window_from_point)
+
+    scroll_events = [ev for ev in result if ev["type"] == "scroll"]
+    assert len(scroll_events) == 1
+    assert scroll_events[0]["delta"]["y"] == -5
+    assert scroll_events[0]["delta"]["x"] == 3
+    # Verify phase fields are present (momentum_phase=0 is omitted for compactness)
+    assert scroll_events[0].get("phase") == 2
+    assert scroll_events[0].get("is_continuous") is True
+
+
 def test_selector_platform_is_mac():
     """Selector should always have platform='mac'."""
     raw_events = [

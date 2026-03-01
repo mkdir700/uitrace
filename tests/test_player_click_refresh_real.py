@@ -57,7 +57,17 @@ class DelayedMovePlatform:
     def inject_click(self, x: int, y: int, button: str, count: int) -> None:
         self.clicked.append((x, y, button, count))
 
-    def inject_scroll(self, x: int, y: int, delta_y: int) -> None:
+    def inject_scroll(
+        self,
+        x: int,
+        y: int,
+        delta_y: int,
+        *,
+        delta_x: int = 0,
+        phase: int | None = None,
+        momentum_phase: int | None = None,
+        is_continuous: bool | None = None,
+    ) -> None:
         pass
 
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
@@ -151,7 +161,17 @@ class StaleThenJumpPlatform:
     def inject_click(self, x: int, y: int, button: str, count: int) -> None:
         self.clicked.append((x, y, button, count))
 
-    def inject_scroll(self, x: int, y: int, delta_y: int) -> None:
+    def inject_scroll(
+        self,
+        x: int,
+        y: int,
+        delta_y: int,
+        *,
+        delta_x: int = 0,
+        phase: int | None = None,
+        momentum_phase: int | None = None,
+        is_continuous: bool | None = None,
+    ) -> None:
         pass
 
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
