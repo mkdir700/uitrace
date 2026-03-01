@@ -64,10 +64,8 @@ def merge_mouse_events(raw_events: Iterable[dict]) -> Iterator[dict]:
             if flushed is not None:
                 yield flushed
 
-            ts = evt["ts"]
-            x = evt["x"]
-            y = evt["y"]
-            accumulated = evt.get("delta_y", 0)
+            # Gather consecutive scroll events within the coalesce window.
+            group = [evt]
             j = i + 1
             while j < n:
                 nxt = events[j]
@@ -75,15 +73,39 @@ def merge_mouse_events(raw_events: Iterable[dict]) -> Iterator[dict]:
                     break
                 if nxt["ts"] - events[j - 1]["ts"] > _SCROLL_COALESCE_WINDOW:
                     break
-                accumulated += nxt.get("delta_y", 0)
+                group.append(nxt)
                 j += 1
-            yield {
-                "kind": "scroll",
-                "ts": ts,
-                "x": x,
-                "y": y,
-                "delta_y": accumulated,
-            }
+
+            # Determine if any event carries high-fidelity phase info.
+            has_phase = any(
+                (e.get("phase") is not None and e.get("phase") != 0)
+                or (e.get("momentum_phase") is not None and e.get("momentum_phase") != 0)
+                for e in group
+            )
+
+            if has_phase:
+                # High-fidelity: yield each event individually.
+                for e in group:
+                    yield dict(e)
+            else:
+                # Legacy path: coalesce into a single event.
+                first = group[0]
+                acc_dy = sum(e.get("delta_y", 0) for e in group)
+                acc_dx = sum(e.get("delta_x", 0) for e in group)
+                merged: dict = {
+                    "kind": "scroll",
+                    "ts": first["ts"],
+                    "x": first["x"],
+                    "y": first["y"],
+                    "delta_y": acc_dy,
+                    "delta_x": acc_dx,
+                }
+                # Pass through optional fields from the first event.
+                for key in ("phase", "momentum_phase", "is_continuous"):
+                    if key in first:
+                        merged[key] = first[key]
+                yield merged
+
             i = j
             continue
 

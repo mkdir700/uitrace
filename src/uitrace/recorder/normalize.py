@@ -13,7 +13,7 @@ _REQUIRED_FIELDS = ("kind", "ts", "x", "y")
 _KIND_EXTRAS: dict[str, list[str]] = {
     "mouse_down": ["button"],
     "mouse_up": ["button"],
-    "scroll": ["delta_y"],
+    "scroll": ["delta_y", "delta_x", "phase", "momentum_phase", "is_continuous"],
 }
 
 
@@ -59,5 +59,15 @@ def normalize_raw_event(raw: dict) -> dict:
     elif kind == "scroll":
         delta_y = raw.get("delta_y", 0)
         result["delta_y"] = int(delta_y)
+        result["delta_x"] = int(raw.get("delta_x", 0))
+
+        phase = raw.get("phase")
+        result["phase"] = int(phase) if phase is not None else None
+
+        momentum_phase = raw.get("momentum_phase")
+        result["momentum_phase"] = int(momentum_phase) if momentum_phase is not None else None
+
+        is_cont = raw.get("is_continuous")
+        result["is_continuous"] = bool(is_cont) if is_cont is not None else None
 
     return result

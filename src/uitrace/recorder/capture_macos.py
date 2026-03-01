@@ -134,7 +134,23 @@ def iter_raw_events(stop_event: threading.Event) -> Iterator[dict]:
             event_queue.put({"kind": "mouse_up", "ts": ts, "x": x, "y": y, "button": button})
         elif event_type == kCGEventScrollWheel:
             delta_y = CGEventGetIntegerValueField(event, kCGScrollWheelEventPointDeltaAxis1)
-            event_queue.put({"kind": "scroll", "ts": ts, "x": x, "y": y, "delta_y": int(delta_y)})
+            delta_x = CGEventGetIntegerValueField(event, _POINT_DELTA_AXIS2_FIELD)
+            phase = CGEventGetIntegerValueField(event, _SCROLL_PHASE_FIELD)
+            momentum_phase = CGEventGetIntegerValueField(event, _MOMENTUM_PHASE_FIELD)
+            is_continuous = CGEventGetIntegerValueField(event, _IS_CONTINUOUS_FIELD)
+            event_queue.put(
+                {
+                    "kind": "scroll",
+                    "ts": ts,
+                    "x": x,
+                    "y": y,
+                    "delta_y": int(delta_y),
+                    "delta_x": int(delta_x),
+                    "phase": int(phase),
+                    "momentum_phase": int(momentum_phase),
+                    "is_continuous": bool(is_continuous),
+                }
+            )
 
         return event
 
