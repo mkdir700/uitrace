@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import time
 
-from uitrace.core.models import Rect
+from uitrace.core.models import Rect, WindowSelector
 from uitrace.platform.base import (
     PermissionReport,
     PermissionStatus,
@@ -144,9 +144,8 @@ class MacOSPlatform:
 
         return None
 
-    def locate(self, selector: "WindowSelector") -> WindowRef | None:
+    def locate(self, selector: WindowSelector) -> WindowRef | None:
         """Locate a window matching the selector."""
-        from uitrace.core.models import WindowSelector
         if not isinstance(selector, WindowSelector):
             selector = WindowSelector.model_validate(selector)
         windows = self.list_windows()
@@ -228,8 +227,8 @@ class MacOSPlatform:
             from AppKit import NSScreen  # type: ignore[import-untyped]
             from ApplicationServices import (  # type: ignore[import-untyped]
                 AXUIElementSetAttributeValue,
-                AXValueGetValue,
                 AXValueCreate,
+                AXValueGetValue,
                 kAXValueTypeCGPoint,
                 kAXValueTypeCGSize,
             )

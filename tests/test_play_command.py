@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
 from uitrace.cli import app
+from uitrace.platform.base import PermissionReport, PermissionStatus
 
 
 def _json_lines(output: str) -> list[dict]:
@@ -38,7 +40,17 @@ def test_play_non_dry_run_emits_permission_denied_and_returns_11():
     runner = CliRunner()
     p = Path("tests/fixtures/trace_v1_valid.jsonl")
 
-    result = runner.invoke(app, ["play", str(p)])
+    denied_report = PermissionReport(
+        accessibility=PermissionStatus.denied,
+        input_monitoring=PermissionStatus.granted,
+        screen_recording=PermissionStatus.granted,
+    )
+
+    with patch(
+        "uitrace.platform.macos.MacOSPlatform.check_permissions",
+        return_value=denied_report,
+    ):
+        result = runner.invoke(app, ["play", str(p)])
 
     assert result.exit_code == 11
     rows = _json_lines(result.stdout)
