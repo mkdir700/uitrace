@@ -295,11 +295,29 @@ class MacOSPlatform:
 
         MacOSExecutor().click(x, y, button, count)
 
-    def inject_scroll(self, x: int, y: int, delta_y: int) -> None:
+    def inject_scroll(
+        self,
+        x: int,
+        y: int,
+        delta_y: int,
+        *,
+        delta_x: int = 0,
+        phase: int | None = None,
+        momentum_phase: int | None = None,
+        is_continuous: bool | None = None,
+    ) -> None:
         """Inject scroll event via Quartz."""
         from uitrace.player.executor import MacOSExecutor
 
-        MacOSExecutor().scroll(x, y, delta_y)
+        MacOSExecutor().scroll(
+            x,
+            y,
+            delta_y,
+            delta_x=delta_x,
+            phase=phase,
+            momentum_phase=momentum_phase,
+            is_continuous=is_continuous,
+        )
 
     def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
         """Get pixel color at screen coordinates (points).

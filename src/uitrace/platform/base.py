@@ -70,7 +70,17 @@ class Platform(Protocol):
         """Inject a mouse click at screen coordinates."""
         ...
 
-    def inject_scroll(self, x: int, y: int, delta_y: int) -> None:
+    def inject_scroll(
+        self,
+        x: int,
+        y: int,
+        delta_y: int,
+        *,
+        delta_x: int = 0,
+        phase: int | None = None,
+        momentum_phase: int | None = None,
+        is_continuous: bool | None = None,
+    ) -> None:
         """Inject a scroll event at screen coordinates."""
         ...
 

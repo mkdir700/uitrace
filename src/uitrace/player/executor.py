@@ -80,17 +80,34 @@ class MacOSExecutor:
             CGEventSetIntegerValueField(up_event, kCGMouseEventClickState, click_num)
             CGEventPost(kCGHIDEventTap, up_event)
 
-    def scroll(self, x: int, y: int, delta_y: int) -> None:
+    def scroll(
+        self,
+        x: int,
+        y: int,
+        delta_y: int,
+        *,
+        delta_x: int = 0,
+        phase: int | None = None,
+        momentum_phase: int | None = None,
+        is_continuous: bool | None = None,
+    ) -> None:
         """Inject a scroll event at screen coordinates (points)."""
         from Quartz import (  # type: ignore[import-untyped]
             CGEventCreateScrollWheelEvent,
             CGEventPost,
+            CGEventSetIntegerValueField,
             CGEventSetLocation,
             kCGHIDEventTap,
+            kCGScrollEventUnitLine,
             kCGScrollEventUnitPixel,
         )
 
-        event = CGEventCreateScrollWheelEvent(None, kCGScrollEventUnitPixel, 1, delta_y)
+        # Use pixel units for continuous (trackpad) scrolls, line units for
+        # discrete (mouse wheel) scrolls.  When is_continuous is None we
+        # default to pixel units for backwards compatibility.
+        unit = kCGScrollEventUnitLine if is_continuous is False else kCGScrollEventUnitPixel
+
+        event = CGEventCreateScrollWheelEvent(None, unit, 2, delta_y, delta_x)
         if event is None:
             from uitrace.errors import ErrorCode, UitError
 
@@ -98,5 +115,13 @@ class MacOSExecutor:
                 code=ErrorCode.INJECTION_FAILED,
                 message=f"Failed to create scroll event at ({x}, {y})",
             )
+
         CGEventSetLocation(event, (x, y))
+
+        if phase is not None:
+            CGEventSetIntegerValueField(event, 99, phase)  # kCGScrollWheelEventScrollPhase
+        if momentum_phase is not None:
+            # kCGScrollWheelEventMomentumPhase
+            CGEventSetIntegerValueField(event, 123, momentum_phase)
+
         CGEventPost(kCGHIDEventTap, event)

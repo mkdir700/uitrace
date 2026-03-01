@@ -170,8 +170,20 @@ class Player:
         rx = pos.rx
         ry = pos.ry
         delta_y: int = delta.get("y", 0) if isinstance(delta, dict) else 0
+        delta_x: int = delta.get("x", 0) if isinstance(delta, dict) else 0
+        phase_val = getattr(event, "phase", None)
+        momentum_val = getattr(event, "momentum_phase", None)
+        is_cont = getattr(event, "is_continuous", None)
         sx, sy = window_rel_to_screen(bounds, rx, ry)
-        self._platform.inject_scroll(sx, sy, delta_y)
+        self._platform.inject_scroll(
+            sx,
+            sy,
+            delta_y,
+            delta_x=delta_x,
+            phase=phase_val,
+            momentum_phase=momentum_val,
+            is_continuous=is_cont,
+        )
         return Point(x=sx, y=sy)
 
     # ------------------------------------------------------------------
