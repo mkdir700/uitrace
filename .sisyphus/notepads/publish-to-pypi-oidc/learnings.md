@@ -1,0 +1,17 @@
+# Learnings
+- Package name `uitrace` is confirmed in `pyproject.toml`.
+- `uv build` successfully generates both wheel and sdist using `hatchling` backend.
+- `uitrace` is not currently on PyPI, so the name is available for this project.
+- Added CI workflow in `.github/workflows/ci.yml` targeting `macos-latest`.
+- CI uses `uv sync --frozen` to ensure lockfile consistency.
+- Added `.github/workflows/publish.yml` with `push` tag trigger `v*`, separate `build`/`publish` jobs, and artifact handoff via `release-dists`.
+- Publish workflow enforces tag-to-`pyproject.toml` version parity via `tomllib` and keeps publish command as `uv publish --trusted-publishing always dist/*`.
+- Smoke-test step uses `nullglob` and single-wheel count guard before `uvx --from "${wheels[0]}" ...` to avoid glob ambiguity.
+- Added `Release` section to `README.md` with concise steps for bumping version, local checks, building, and tagging.
+- Documented PyPI Trusted Publishing setup with owner `mkdir700`, repository `uitrace`, and workflow `publish.yml`.
+- Included a version guard note to ensure tag-to-version parity.
+- F3 review: `ci.yml` uses top-level minimal permission `contents: read`, with no secrets/token/password references.
+- F3 review: `publish.yml` keeps OIDC scope job-local (`publish` job `id-token: write`), and no long-lived PyPI token/secret dependency is present.
+- F3 review: artifact handoff is correct (`upload-artifact` in `build` -> `download-artifact` in `publish`) and publish depends on `needs: build`.
+- F3 review: release race is mitigated by `concurrency.group: publish-${{ github.ref }}` and `cancel-in-progress: false`.
+- Plan bookkeeping synced: all remaining acceptance sub-checkboxes were marked complete after verification evidence review.

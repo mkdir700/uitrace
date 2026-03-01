@@ -1,7 +1,10 @@
 {
-  "active_plan": "/Users/mark/MyProjects/uitrace/.sisyphus/plans/2026-02-28-uitrace-mvp.md",
-  "started_at": "2026-02-28T15:40:39.134Z",
-  "session_ids": ["ses_35b174ebfffeY4B0aDgp7R48Ip"],
-  "plan_name": "2026-02-28-uitrace-mvp",
+  "active_plan": "/Users/mark/MyProjects/uitrace/.sisyphus/plans/publish-to-pypi-oidc.md",
+  "started_at": "2026-03-01T13:23:09.000Z",
+  "session_ids": [
+    "ses_356970422ffeNuJcGYii4CCpI7",
+    "ses_3566bf565ffeIGk5T8T0tjztke"
+  ],
+  "plan_name": "publish-to-pypi-oidc",
   "worktree_path": "/Users/mark/MyProjects/uitrace"
 }

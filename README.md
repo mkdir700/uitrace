@@ -118,3 +118,25 @@ uv run ruff check .     # Lint
 uv run mypy src         # Type check
 uv run pytest -q        # Tests
 ```
+### Release
+
+1. Bump version in `pyproject.toml`.
+2. Run local checks and build:
+   ```bash
+   uv run ruff check . && uv run mypy src && uv run pytest -q
+   uv build
+   ```
+3. Create and push a version tag:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+   **Important:** The tag `vX.Y.Z` must match the `project.version` in `pyproject.toml`.
+
+#### PyPI Setup
+
+This project uses [Trusted Publishing](https://docs.pypi.org/trusted-publishers/).
+Configure the following on PyPI for the `uitrace` project:
+- **Owner:** `mkdir700`
+- **Repository:** `uitrace`
+- **Workflow name:** `publish.yml`
