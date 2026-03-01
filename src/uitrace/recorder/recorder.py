@@ -187,16 +187,28 @@ def process_raw_events_multi_window(
                 }
             )
         elif kind == "scroll":
-            result.append(
-                {
-                    "v": 1,
-                    "type": "scroll",
-                    "ts": round(ts, 6),
-                    "pos": {"rx": pos.rx, "ry": pos.ry},
-                    "screen": {"x": x, "y": y},
-                    "delta": {"y": raw.get("delta_y", 0)},
-                }
-            )
+            scroll_ev: dict[str, Any] = {
+                "v": 1,
+                "type": "scroll",
+                "ts": round(ts, 6),
+                "pos": {"rx": pos.rx, "ry": pos.ry},
+                "screen": {"x": x, "y": y},
+                "delta": {"y": raw.get("delta_y", 0)},
+            }
+            # Add optional horizontal delta
+            dx = raw.get("delta_x", 0)
+            if dx != 0:
+                scroll_ev["delta"]["x"] = dx
+            # Add optional phase fields (only write non-zero values to keep JSONL compact)
+            phase_val = raw.get("phase")
+            if phase_val is not None and phase_val != 0:
+                scroll_ev["phase"] = phase_val
+            mp_val = raw.get("momentum_phase")
+            if mp_val is not None and mp_val != 0:
+                scroll_ev["momentum_phase"] = mp_val
+            if raw.get("is_continuous") is not None:
+                scroll_ev["is_continuous"] = raw["is_continuous"]
+            result.append(scroll_ev)
 
     return result
 
@@ -571,17 +583,28 @@ class Recorder:
                 ),
             )
         elif ev["kind"] == "scroll":
-            _write_event(
-                f,
-                Scroll(
-                    v=1,
-                    type="scroll",
-                    ts=round(ts, 6),
-                    pos=pos,
-                    screen=Point(x=x, y=y),
-                    delta={"y": ev.get("delta_y", 0)},
-                ),
-            )
+            scroll_kwargs: dict[str, Any] = {
+                "v": 1,
+                "type": "scroll",
+                "ts": round(ts, 6),
+                "pos": pos,
+                "screen": Point(x=x, y=y),
+                "delta": {"y": ev.get("delta_y", 0)},
+            }
+            # Add optional horizontal delta
+            dx = ev.get("delta_x", 0)
+            if dx != 0:
+                scroll_kwargs["delta"]["x"] = dx
+            # Add optional phase fields (only write non-zero values to keep JSONL compact)
+            phase_val = ev.get("phase")
+            if phase_val is not None and phase_val != 0:
+                scroll_kwargs["phase"] = phase_val
+            mp_val = ev.get("momentum_phase")
+            if mp_val is not None and mp_val != 0:
+                scroll_kwargs["momentum_phase"] = mp_val
+            if ev.get("is_continuous") is not None:
+                scroll_kwargs["is_continuous"] = ev["is_continuous"]
+            _write_event(f, Scroll(**scroll_kwargs))
 
     def _write_raw_event(self, f: TextIO, raw: dict, bounds: Rect) -> None:
         """Write a raw event directly (no merge)."""
@@ -605,14 +628,25 @@ class Recorder:
                     ),
                 )
         elif raw["kind"] == "scroll":
-            _write_event(
-                f,
-                Scroll(
-                    v=1,
-                    type="scroll",
-                    ts=round(ts, 6),
-                    pos=pos,
-                    screen=Point(x=x, y=y),
-                    delta={"y": raw.get("delta_y", 0)},
-                ),
-            )
+            scroll_kwargs: dict[str, Any] = {
+                "v": 1,
+                "type": "scroll",
+                "ts": round(ts, 6),
+                "pos": pos,
+                "screen": Point(x=x, y=y),
+                "delta": {"y": raw.get("delta_y", 0)},
+            }
+            # Add optional horizontal delta
+            dx = raw.get("delta_x", 0)
+            if dx != 0:
+                scroll_kwargs["delta"]["x"] = dx
+            # Add optional phase fields (only write non-zero values to keep JSONL compact)
+            phase_val = raw.get("phase")
+            if phase_val is not None and phase_val != 0:
+                scroll_kwargs["phase"] = phase_val
+            mp_val = raw.get("momentum_phase")
+            if mp_val is not None and mp_val != 0:
+                scroll_kwargs["momentum_phase"] = mp_val
+            if raw.get("is_continuous") is not None:
+                scroll_kwargs["is_continuous"] = raw["is_continuous"]
+            _write_event(f, Scroll(**scroll_kwargs))
