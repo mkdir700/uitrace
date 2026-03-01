@@ -320,3 +320,156 @@ def test_wait_until_pixel_timeout():
     assert wait_results[0].status == "error"
     assert wait_results[0].error_code == "ASSERTION_FAILED"
     assert "timed out" in wait_results[0].message
+
+
+# ---------------------------------------------------------------------------
+# FakePlatformWithBoundsDelay – get_bounds transitions after N calls
+# ---------------------------------------------------------------------------
+
+
+class FakePlatformWithBoundsDelay:
+    """Platform where get_bounds returns old bounds for the first N calls,
+    then switches to new bounds.  Used to simulate the delay between
+    focus()+center and the OS actually moving the window."""
+
+    def __init__(
+        self,
+        *,
+        locate_result: WindowRef,
+        old_bounds: Rect,
+        new_bounds: Rect,
+        switch_after: int = 2,
+    ) -> None:
+        self._locate_result = locate_result
+        self._old_bounds = old_bounds
+        self._new_bounds = new_bounds
+        self._switch_after = switch_after
+        self._get_bounds_calls = 0
+        self.focused: list[WindowRef] = []
+        self.clicked: list[tuple[int, int, str, int]] = []
+
+    # -- permissions / window listing --
+
+    def check_permissions(self) -> PermissionReport:
+        return PermissionReport(
+            accessibility=PermissionStatus.granted,
+            input_monitoring=PermissionStatus.granted,
+            screen_recording=PermissionStatus.granted,
+        )
+
+    def list_windows(self) -> list[WindowRef]:
+        return []
+
+    # -- locate / focus --
+
+    def locate(self, selector: WindowSelector) -> WindowRef | None:
+        return self._locate_result
+
+    def focus(self, win: WindowRef) -> bool:
+        self.focused.append(win)
+        return True
+
+    # -- stateful get_bounds --
+
+    def get_bounds(self, win: WindowRef) -> Rect | None:
+        self._get_bounds_calls += 1
+        if self._get_bounds_calls <= self._switch_after:
+            return self._old_bounds
+        return self._new_bounds
+
+    # -- pixel (not used but required by protocol) --
+
+    def get_pixel(self, x: int, y: int) -> tuple[int, int, int] | None:
+        return (0, 0, 0)
+
+    # -- injection --
+
+    def inject_click(self, x: int, y: int, button: str, count: int) -> None:
+        self.clicked.append((x, y, button, count))
+
+    def inject_scroll(self, x: int, y: int, delta_y: int) -> None:
+        pass
+
+    def window_from_point(self, x: int, y: int) -> WindowRef | None:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Test: wait_until(window_found) focus path uses post-center bounds
+# ---------------------------------------------------------------------------
+
+
+def test_window_found_focus_waits_for_bounds_change_before_click():
+    """After wait_until(window_found) focuses a window the subsequent click
+    must use the *new* (post-center) bounds, not the stale pre-center bounds.
+
+    Sequence:
+      1. wait_until(window_found) locates the window immediately.
+      2. get_bounds returns old bounds (100,100,400,300) for the first 2 calls,
+         then switches to new bounds (300,200,400,300) from call 3 onward.
+      3. _wait_bounds_settle_after_focus detects the change and returns new bounds.
+      4. WindowBounds event refreshes bounds (still new).
+      5. Click at rx=0.5, ry=0.5 should resolve to (500, 350).
+    """
+    from uitrace.core.models import Click, Point, Pos
+
+    old = Rect(x=100, y=100, w=400, h=300)
+    new = Rect(x=300, y=200, w=400, h=300)
+
+    fake_win = WindowRef(
+        handle="h-delay",
+        title="TestWindow",
+        pid=999,
+        owner_name="DelayApp",
+        bounds=old,
+        window_number=1,
+    )
+
+    platform = FakePlatformWithBoundsDelay(
+        locate_result=fake_win,
+        old_bounds=old,
+        new_bounds=new,
+        switch_after=2,
+    )
+
+    events = [
+        SessionStart(v=1, type="session_start", ts=0.0, meta={}),
+        WaitUntil(
+            v=1,
+            type="wait_until",
+            ts=0.1,
+            kind="window_found",
+            selector=WindowSelector(title="TestWindow"),
+            timeout_ms=5000,
+        ),
+        WindowBounds(
+            v=1,
+            type="window_bounds",
+            ts=0.2,
+            bounds=Rect(x=100, y=100, w=400, h=300),
+        ),
+        Click(
+            v=1,
+            type="click",
+            ts=0.3,
+            pos=Pos(rx=0.5, ry=0.5),
+            screen=Point(x=300, y=250),
+            button="left",
+            count=1,
+        ),
+    ]
+
+    player = Player(platform=platform, clock_ns=lambda: 0, sleep=lambda _: None)
+
+    results: list[StepResult] = list(
+        player.run(iter(events), dry_run=False)
+    )
+
+    # The click must have used the NEW bounds centre:
+    #   x = 300 + round(400 * 0.5) = 500
+    #   y = 200 + round(300 * 0.5) = 350
+    assert len(platform.clicked) == 1
+    assert platform.clicked[0][:2] == (500, 350)
+
+    # All playable steps should have succeeded
+    assert all(r.ok for r in results)

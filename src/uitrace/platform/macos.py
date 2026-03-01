@@ -43,6 +43,10 @@ class MacOSPlatform:
 
         windows: list[WindowRef] = []
         for info in window_info:
+            # Skip system decoration windows (shadows, rounded corners).
+            if info.get("kCGWindowOwnerName") == "WindowManager":
+                continue
+
             bounds_dict = info.get("kCGWindowBounds")
             if bounds_dict is None:
                 continue
@@ -160,7 +164,7 @@ class MacOSPlatform:
         return None
 
     def focus(self, win: WindowRef) -> bool:
-        """Focus a window's application."""
+        """Focus a window's application and raise the specific window."""
         if win.pid is None:
             return False
         try:
@@ -170,9 +174,92 @@ class MacOSPlatform:
             if app is None:
                 return False
             # NSApplicationActivateIgnoringOtherApps
-            return bool(app.activateWithOptions_(1 << 1))
+            activated = bool(app.activateWithOptions_(1 << 1))
+            if activated:
+                self._raise_window(win)
+            return activated
         except Exception:
             return False
+
+    def _raise_window(self, win: WindowRef) -> None:
+        """Raise a specific window to front and center it on screen."""
+        if win.pid is None:
+            return
+        try:
+            from ApplicationServices import (  # type: ignore[import-untyped]
+                AXUIElementCopyAttributeValue,
+                AXUIElementCreateApplication,
+                AXUIElementPerformAction,
+            )
+        except ImportError:
+            return
+        try:
+            app_ref = AXUIElementCreateApplication(win.pid)
+            err, ax_windows = AXUIElementCopyAttributeValue(
+                app_ref, "AXWindows", None
+            )
+            if err != 0 or not ax_windows:
+                return
+            target = None
+            if win.title:
+                for ax_win in ax_windows:
+                    err2, title = AXUIElementCopyAttributeValue(
+                        ax_win, "AXTitle", None
+                    )
+                    if err2 == 0 and title == win.title:
+                        target = ax_win
+                        break
+            if target is None:
+                target = ax_windows[0]
+            AXUIElementPerformAction(target, "AXRaise")
+            # Center the window on screen
+            self._center_ax_window(target, win, AXUIElementCopyAttributeValue)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _center_ax_window(
+        ax_win: object,
+        win: WindowRef,
+        copy_attr: object,
+    ) -> None:
+        """Move a window to the center of the main screen."""
+        try:
+            from AppKit import NSScreen  # type: ignore[import-untyped]
+            from ApplicationServices import (  # type: ignore[import-untyped]
+                AXUIElementSetAttributeValue,
+                AXValueGetValue,
+                AXValueCreate,
+                kAXValueTypeCGPoint,
+                kAXValueTypeCGSize,
+            )
+            from CoreFoundation import CGPoint  # type: ignore[import-untyped]
+
+            screen = NSScreen.mainScreen()
+            if screen is None:
+                return
+            frame = screen.frame()
+
+            # Get window size from AX
+            win_w = float(win.bounds.w)
+            win_h = float(win.bounds.h)
+            err, ax_size = copy_attr(ax_win, "AXSize", None)  # type: ignore[operator]
+            if err == 0 and ax_size is not None:
+                if hasattr(ax_size, "width") and hasattr(ax_size, "height"):
+                    win_w = float(ax_size.width)  # type: ignore[union-attr]
+                    win_h = float(ax_size.height)  # type: ignore[union-attr]
+                else:
+                    ok, size = AXValueGetValue(ax_size, kAXValueTypeCGSize, None)
+                    if ok and size is not None:
+                        win_w = float(size.width)  # type: ignore[union-attr]
+                        win_h = float(size.height)  # type: ignore[union-attr]
+
+            cx = frame.origin.x + (frame.size.width - win_w) / 2
+            cy = frame.origin.y + (frame.size.height - win_h) / 2
+            pos = AXValueCreate(kAXValueTypeCGPoint, CGPoint(cx, cy))
+            AXUIElementSetAttributeValue(ax_win, "AXPosition", pos)
+        except Exception:
+            pass
 
     def get_bounds(self, win: WindowRef) -> Rect | None:
         """Get current bounds for a window."""

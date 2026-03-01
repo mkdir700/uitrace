@@ -54,7 +54,7 @@ class Player:
                 message="Accessibility permission denied",
             )
 
-    def _handle_window_selector(self, event: object) -> WindowRef | None:
+    def _handle_window_selector(self, event: object) -> tuple[WindowRef, Rect] | None:
         """Locate the target window from a window_selector event."""
         assert self._platform is not None
         selector = getattr(event, "selector", None)
@@ -62,13 +62,15 @@ class Player:
             return None
         win = self._platform.locate(selector)
         if win is not None:
+            baseline = self._platform.get_bounds(win) or win.bounds
             self._platform.focus(win)
+            settled = self._wait_bounds_settle_after_focus(win, baseline)
+            return (win, settled)
         else:
             raise UitError(
                 code=ErrorCode.WINDOW_NOT_FOUND,
                 message="Window not found for selector",
             )
-        return win
 
     def _handle_window_bounds(
         self, event: object, win: WindowRef | None
@@ -79,6 +81,70 @@ class Player:
             if refreshed is not None:
                 return refreshed
         return getattr(event, "bounds", Rect(x=0, y=0, w=0, h=0))
+
+    def _refresh_bounds(
+        self, win: WindowRef | None, bounds: Rect
+    ) -> Rect:
+        """Best-effort refresh for current window bounds."""
+        if win is not None and self._platform is not None:
+            refreshed = self._platform.get_bounds(win)
+            if refreshed is not None:
+                return refreshed
+        return bounds
+
+    def _wait_bounds_settle_after_focus(
+        self, win: "WindowRef", baseline: Rect
+    ) -> Rect:
+        """Wait for window bounds to change from *baseline* then stabilise.
+
+        After a focus()+center, the system may take several frames to update
+        the window position.  This helper polls ``get_bounds`` until it
+        detects a *change* from *baseline* AND that the new value is stable
+        (read identically ``STABLE_READS`` consecutive times).
+
+        On timeout the last observed bounds are returned (or *baseline* if
+        ``get_bounds`` keeps returning ``None``).
+        """
+        import math
+
+        POLL_INTERVAL_S = 0.05
+        TIMEOUT_MS = 1000
+        STABLE_READS = 2
+
+        assert self._platform is not None
+        max_polls = math.ceil(TIMEOUT_MS / (POLL_INTERVAL_S * 1000))
+
+        change_observed = False
+        last_bounds: Rect = baseline
+        stable_count = 0
+
+        for _ in range(max_polls):
+            current = self._platform.get_bounds(win)
+            if current is None:
+                self._sleep(POLL_INTERVAL_S)
+                continue
+
+            if not change_observed:
+                if current != baseline:
+                    change_observed = True
+                    last_bounds = current
+                    stable_count = 1
+                else:
+                    self._sleep(POLL_INTERVAL_S)
+                    continue
+            else:
+                if current == last_bounds:
+                    stable_count += 1
+                else:
+                    last_bounds = current
+                    stable_count = 1
+
+            if stable_count >= STABLE_READS:
+                return last_bounds
+
+            self._sleep(POLL_INTERVAL_S)
+
+        return last_bounds
 
     def _handle_click(
         self, event: object, bounds: Rect
@@ -228,7 +294,9 @@ class Player:
             screen_final: Point | None = None
             try:
                 if event_type == "window_selector":
-                    current_win = self._handle_window_selector(event)
+                    sel_result = self._handle_window_selector(event)
+                    if sel_result is not None:
+                        current_win, current_bounds = sel_result
 
                 elif event_type == "window_bounds":
                     current_bounds = self._handle_window_bounds(
@@ -236,9 +304,11 @@ class Player:
                     )
 
                 elif event_type == "click":
+                    current_bounds = self._refresh_bounds(current_win, current_bounds)
                     screen_final = self._handle_click(event, current_bounds)
 
                 elif event_type == "scroll":
+                    current_bounds = self._refresh_bounds(current_win, current_bounds)
                     screen_final = self._handle_scroll(event, current_bounds)
 
                 elif event_type == "assert":
@@ -255,6 +325,7 @@ class Player:
                             getattr(event, "value", "") or "",
                         )
                     elif kind == "pixel":
+                        current_bounds = self._refresh_bounds(current_win, current_bounds)
                         result = check_pixel(
                             self._platform,
                             current_bounds,
@@ -296,6 +367,7 @@ class Player:
                     if kind == "pixel":
                         from uitrace.player.observer import wait_until_pixel
 
+                        current_bounds = self._refresh_bounds(current_win, current_bounds)
                         result = wait_until_pixel(
                             self._platform,
                             current_bounds,
@@ -382,7 +454,9 @@ class Player:
                             )
                         # Update current window state
                         current_win = found_win
+                        baseline = self._platform.get_bounds(current_win) or current_win.bounds
                         self._platform.focus(current_win)
+                        current_bounds = self._wait_bounds_settle_after_focus(current_win, baseline)
                         # Fall through to success
                     else:
                         elapsed = (self._clock_ns() - t0) // 1_000_000
