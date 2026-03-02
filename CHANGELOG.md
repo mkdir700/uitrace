@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.0 — High-Fidelity Scroll
+
+Refactored scroll recording and playback pipeline for accurate reproduction of both trackpad and mouse wheel scrolling.
+
+### New Features
+
+- **Scroll phase capture**: Record scroll phase sequences (began → changed → ended → momentum) from trackpad events
+- **Momentum phase support**: Capture and replay inertial scrolling after finger lift
+- **Horizontal scroll**: Support `delta.x` alongside `delta.y` for two-axis scrolling
+- **Device type detection**: Distinguish trackpad (`is_continuous: true`) from mouse wheel (`is_continuous: false`) via CGEvent field inspection
+- **Phase-aware merge**: Phased scroll events are preserved individually (no coalescing); legacy events without phase data still coalesce as before
+- **Phase-aware injection**: Replay sets scroll phase and momentum phase on injected CGEvents, with correct scroll unit selection (pixel for trackpad, line for mouse wheel)
+
+### Backward Compatibility
+
+- Trace format remains `v: 1` — no schema version bump
+- All new Scroll fields (`phase`, `momentum_phase`, `is_continuous`) are optional with `None` defaults
+- Old JSONL files (without new fields) validate and play back correctly
+- New JSONL files will not work on uitrace < 0.2.0 (optional fields are silently rejected by `extra="forbid"`)
+
 ## 0.1.0 — Initial Release
 
 First public release of **uitrace** — a macOS UI trace tool for recording and playing back user interactions.

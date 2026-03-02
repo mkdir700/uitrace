@@ -1,6 +1,6 @@
 [project]
 name = "uitrace"
-version = "0.1.0"
+version = "0.2.0"
 description = "UI trace tool for macOS: record and playback user interactions"
 readme = "README.md"
 requires-python = ">=3.12"
