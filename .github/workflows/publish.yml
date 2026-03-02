@@ -103,3 +103,44 @@ jobs:
 
       - name: Publish
         run: uv publish --trusted-publishing always dist/*
+
+  release:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download dists
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+      - name: Extract changelog
+        id: changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extract the section for this version (between its ## heading and the next ## heading)
+          awk "/^## ${VERSION//./\\.} /{found=1; next} /^## /{if(found) exit} found" CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::warning::No changelog entry found for version ${VERSION}"
+            echo "Release ${VERSION}" > notes.md
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          --draft
+          --notes-file notes.md
+          --title "$GITHUB_REF_NAME"
+          dist/*
